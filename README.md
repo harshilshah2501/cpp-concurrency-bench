@@ -1,13 +1,11 @@
-<<<<<<< HEAD
 # C++ Concurrency Benchmarking Suite
 
-A comprehensive benchmarking framework for C++ concurrency primitives designed to provide data-driven insights for technical interviews and production system design decisions.
+A comprehensive benchmarking framework for C++ concurrency primitives designed to provide data-driven insights for production system design decisions.
 
 ## 🎯 Objective
 
 This project benchmarks various C++ synchronization mechanisms to help developers:
 - **Make informed decisions** about which concurrency primitive to use
-- **Prepare for technical interviews** with concrete performance data
 - **Understand trade-offs** between throughput, latency, fairness, and complexity
 - **Identify optimal use cases** for each synchronization mechanism
 
@@ -787,7 +785,7 @@ Stackless Coroutines   | 8 GB             | 1-5                | Excellent
 
 **🏆 Key Insight Proven**: Each concurrency primitive has a **sweet spot** where it dramatically outperforms others. Choose the right kitchen tool for the job!
 
-## 🎯 Interview-Ready Results
+## 🎯 Benchmarking Results
 
 ### Decision Matrix
 
