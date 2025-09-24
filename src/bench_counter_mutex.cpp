@@ -20,7 +20,7 @@
 //
 // Expected behavior:
 // - Single thread: Baseline performance (no contention)
-// - Multiple threads: Performance degrades due to serialization
+// - Multiple threads: Performance degrades due to serialization i.e. one by one
 // - Beyond core count: Further degradation due to context switching
 //
 // This provides the baseline against which to compare:

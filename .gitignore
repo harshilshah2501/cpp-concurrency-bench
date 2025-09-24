@@ -1,9 +1,11 @@
 # Build artifacts
 build/
 cmake-build-*/
+.clang-format-*
 
 # Benchmark results (keep structure, ignore content)
 benchmark_results/*/
+benchmark_results_simple/*/
 !benchmark_results/README.md
 
 # Archive directory (local storage only)
