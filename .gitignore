@@ -1,0 +1,74 @@
+# Build artifacts
+build/
+cmake-build-*/
+
+# Benchmark results (keep structure, ignore content)
+benchmark_results/*/
+!benchmark_results/README.md
+
+# Archive directory (local storage only)
+archive/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Compiled executables
+*.exe
+*.out
+*.app
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Object files
+*.o
+*.obj
+*.elf
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Package managers
+conan.lock
+vcpkg_installed/
+
+# CMake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+
+# Performance profiling
+*.prof
+perf.data*

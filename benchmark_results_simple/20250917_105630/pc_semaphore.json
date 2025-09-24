@@ -1,0 +1,32 @@
+{
+  "context": {
+    "date": "2025-09-17T11:01:58+05:30",
+    "host_name": "Harshils-MacBook-Air.local",
+    "executable": "./build/bench_pc_semaphore",
+    "num_cpus": 8,
+    "mhz_per_cpu": 24,
+    "cpu_scaling_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 65536,
+        "num_sharing": 0
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 131072,
+        "num_sharing": 0
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 4194304,
+        "num_sharing": 1
+      }
+    ],
+    "load_avg": [4.79688,3.62061,2.89355],
+    "library_build_type": "debug"
+  },
+  "benchmarks": [
