@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Build artifacts
 build/
 cmake-build-*/
@@ -28,10 +29,48 @@ ehthumbs.db
 Thumbs.db
 
 # Compiled executables
+=======
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Linker files
+*.ilk
+
+# Debugger Files
+*.pdb
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+>>>>>>> bd874bd5a13bd1f2c4491a2d0b1b48c50ffad703
 *.exe
 *.out
 *.app
 
+<<<<<<< HEAD
 # Libraries
 *.lib
 *.a
@@ -74,3 +113,7 @@ compile_commands.json
 # Performance profiling
 *.prof
 perf.data*
+=======
+# debug information files
+*.dwo
+>>>>>>> bd874bd5a13bd1f2c4491a2d0b1b48c50ffad703

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # C++ Concurrency Benchmarking Suite
 
 A comprehensive benchmarking framework for C++ concurrency primitives designed to provide data-driven insights for technical interviews and production system design decisions.
@@ -1120,3 +1121,7 @@ expensive_computation();
 MIT License - See LICENSE file for details
 
 ---
+=======
+# cpp-concurrency-bench
+C++ concurrency benchmarking suite with kitchen analogies and data-driven insights
+>>>>>>> bd874bd5a13bd1f2c4491a2d0b1b48c50ffad703
