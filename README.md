@@ -180,14 +180,14 @@ ingredient_arrived.notify_all();  // Ring bell to wake up all waiting chefs
 - **Complex synchronization** patterns with multiple conditions
 
 **When to Use**:
-- ✅ Producer-consumer queues
-- ✅ Thread pools waiting for work
-- ✅ Any scenario where threads need to wait for specific conditions
+- Producer-consumer queues
+- Thread pools waiting for work
+- Any scenario where threads need to wait for specific conditions
 
 **Trade-offs**:
-- ❌ More complex than simple locks
-- ❌ Risk of spurious wakeups
-- ❌ Can be inefficient for simple signaling
+- More complex than simple locks
+- Risk of spurious wakeups
+- Can be inefficient for simple signaling
 
 ---
 
@@ -209,14 +209,14 @@ oven_slots.release();  // Returns oven token for others to use
 - **Natural throttling** - prevents system overload
 
 **When to Use**:
-- ✅ Connection pools, thread pools with size limits
-- ✅ Rate limiting and resource throttling
-- ✅ Simpler alternative to condition variables for counting scenarios
+- Connection pools, thread pools with size limits
+- Rate limiting and resource throttling
+- Simpler alternative to condition variables for counting scenarios
 
 **Trade-offs**:
-- ❌ Less flexible than condition variables
-- ❌ C++20 only (newer feature)
-- ❌ Can't encode complex conditions
+- Less flexible than condition variables
+- C++20 only (newer feature)
+- Can't encode complex conditions
 
 ---
 
@@ -240,14 +240,14 @@ chef.cook_appetizer();
 - **Pipeline stages** - orderly progression through phases
 
 **When to Use**:
-- ✅ Parallel algorithms with synchronization points
-- ✅ Multi-phase computations
-- ✅ Game engine frame synchronization
+- Parallel algorithms with synchronization points
+- Multi-phase computations
+- Game engine frame synchronization
 
 **Trade-offs**:
-- ❌ All threads must reach barrier (weakest link problem)
-- ❌ C++20 only
-- ❌ Not suitable for producer-consumer patterns
+- All threads must reach barrier (weakest link problem)
+- C++20 only
+- Not suitable for producer-consumer patterns
 
 ---
 
@@ -271,14 +271,14 @@ auto result = future_result.get();  // Retrieve the completed dish
 - **Resource control** - limit concurrent thread count
 
 **When to Use**:
-- ✅ Many small tasks to be processed
-- ✅ Web servers, task processing systems
-- ✅ When thread creation overhead matters
+- Many small tasks to be processed
+- Web servers, task processing systems
+- When thread creation overhead matters
 
 **Trade-offs**:
-- ❌ More complex than simple std::async
-- ❌ Queue contention can become bottleneck
-- ❌ Fixed pool size may not adapt to workload
+- More complex than simple std::async
+- Queue contention can become bottleneck
+- Fixed pool size may not adapt to workload
 
 ---
 
@@ -305,14 +305,14 @@ auto appetizer = future_appetizer.get();
 - **Composable async operations** - chain dependent tasks
 
 **When to Use**:
-- ✅ I/O-bound operations
-- ✅ Independent computations that can run in parallel
-- ✅ When you need result values from async work
+- I/O-bound operations
+- Independent computations that can run in parallel
+- When you need result values from async work
 
 **Trade-offs**:
-- ❌ Thread management is hidden (less control)
-- ❌ Can create too many threads with std::launch::async
-- ❌ Future can only be retrieved once
+- Thread management is hidden (less control)
+- Can create too many threads with std::launch::async
+- Future can only be retrieved once
 
 ---
 
@@ -338,18 +338,18 @@ int current_time = timer.next();  // Get time updates one by one
 - **Elegant async code** - looks synchronous, runs asynchronously
 
 **When to Use**:
-- ✅ Thousands or millions of concurrent tasks
-- ✅ I/O-heavy applications (network servers)
-- ✅ State machines and generators
+- Thousands or millions of concurrent tasks
+- I/O-heavy applications (network servers)
+- State machines and generators
 
 **Trade-offs**:
-- ❌ C++20 only, limited compiler support
-- ❌ More complex mental model
-- ❌ No preemption - must cooperatively yield
+- C++20 only, limited compiler support
+- More complex mental model
+- No preemption - must cooperatively yield
 
 ---
 
-### 🎯 **Choosing the Right Tool**
+### **Choosing the Right Tool**
 
 | **Problem Type** | **Best Choice** | **Why?** |
 |------------------|-----------------|----------|
@@ -368,9 +368,9 @@ int current_time = timer.next();  // Get time updates one by one
 
 ---
 
-### 🚨 **Common Misconceptions & When NOT to Use**
+### **Common Misconceptions & When NOT to Use**
 
-#### ❌ **"Atomics are always faster than mutexes"**
+#### **"Atomics are always faster than mutexes"**
 **Reality**: Atomics excel at simple operations but become similar to mutexes under high contention.
 ```cpp
 // GOOD: Simple order counter
@@ -381,7 +381,7 @@ order_counter.fetch_add(1);
 std::atomic<KitchenState*> state;  // Use mutex instead for complex state
 ```
 
-#### ❌ **"Spinlocks are always low-latency"**
+#### **"Spinlocks are always low-latency"**
 **Reality**: Spinlocks waste CPU and perform terribly under contention.
 ```cpp
 // GOOD: Protecting very short operations
@@ -396,7 +396,7 @@ chef.call_supplier();          // Even worse!
 spinlock.unlock();
 ```
 
-#### ❌ **"Shared mutex is always better for reads"**
+#### **"Shared mutex is always better for reads"**
 **Reality**: Break-even point is around 70% reads, and writers can starve.
 ```cpp
 // GOOD: Read-heavy recipe lookups (90%+ reads)
@@ -407,7 +407,7 @@ return recipe_book[dish_name];
 // Regular mutex often performs better in the kitchen
 ```
 
-#### ❌ **"Lock-free means faster"**
+#### **"Lock-free means faster"**
 **Reality**: Lock-free adds complexity and may not improve performance for simple cases.
 ```cpp
 // SIMPLE KITCHEN CASE: Mutex might be clearer and fast enough
@@ -418,7 +418,7 @@ ingredient_inventory.update();
 lock_free_order_queue.push(order);  // Only if proven necessary
 ```
 
-#### ❌ **"More chefs = better performance"**
+#### **"More chefs = better performance"**
 **Reality**: Beyond optimal kitchen capacity, additional chefs often hurt performance.
 ```cpp
 // BAD: Too many chefs in the kitchen
@@ -428,7 +428,7 @@ const int too_many_chefs = kitchen_stations * 4;
 const int optimal_chefs = kitchen_stations;
 ```
 
-## 📊 What We Benchmark
+## What We Benchmark
 
 ### Core Synchronization Primitives
 - **Mutexes**: `std::mutex`, `std::shared_mutex` (reader-writer scenarios)
