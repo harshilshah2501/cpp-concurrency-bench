@@ -2,14 +2,14 @@
 
 A comprehensive benchmarking framework for C++ concurrency primitives designed to provide data-driven insights for production system design decisions.
 
-## 🎯 Objective
+## Objective
 
 This project benchmarks various C++ synchronization mechanisms to help developers:
 - **Make informed decisions** about which concurrency primitive to use
 - **Understand trade-offs** between throughput, latency, fairness, and complexity
 - **Identify optimal use cases** for each synchronization mechanism
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # Clone and setup
@@ -33,14 +33,14 @@ make -j$(nproc)
 ./bench_coroutines
 ```
 
-## 🧠 Understanding Concurrency: Analogies and Real-World Problems
+## Understanding Concurrency: Analogies and Real-World Problems
 
 ### The Fundamental Challenge
 Imagine a busy restaurant kitchen where multiple chefs need to access shared resources (ingredients, equipment, prep stations). Without coordination, chaos ensues: chefs bump into each other, ingredients get double-used, orders get mixed up. **Concurrency primitives are like different management strategies to organize this chaos efficiently.**
 
 ---
 
-### 🔒 **Mutex (Mutual Exclusion)**
+### **Mutex (Mutual Exclusion)**
 **Kitchen Analogy**: *A premium chef's knife that only one chef can use at a time*
 
 ```cpp
@@ -56,18 +56,18 @@ chef.chop_vegetables();  // Safe, exclusive access
 - **Consistency** by ensuring atomic operations
 
 **When to Use**:
-- ✅ Protecting shared state that changes frequently
-- ✅ Critical sections with moderate duration (100s-1000s of cycles)
-- ✅ When fairness is important (threads take turns)
+- Protecting shared state that changes frequently
+- Critical sections with moderate duration (100s-1000s of cycles)
+- When fairness is important (threads take turns)
 
 **Trade-offs**:
-- ❌ High overhead for very short operations
-- ❌ Can become a bottleneck under high contention
-- ❌ Potential for deadlocks with multiple mutexes
+- High overhead for very short operations
+- Can become a bottleneck under high contention
+- Potential for deadlocks with multiple mutexes
 
 ---
 
-### ⚛️ **Atomic Operations**
+### **Atomic Operations**
 **Kitchen Analogy**: *A digital order counter that multiple chefs can safely update simultaneously*
 
 ```cpp
@@ -82,18 +82,18 @@ order_count.fetch_add(1, std::memory_order_relaxed);
 - **Memory efficiency** - no need for separate mutex objects
 
 **When to Use**:
-- ✅ Simple operations: increment, decrement, compare-and-swap
-- ✅ High-frequency updates (millions of ops/second)
-- ✅ Lock-free data structures
+- Simple operations: increment, decrement, compare-and-swap
+- High-frequency updates (millions of ops/second)
+- Lock-free data structures
 
 **Trade-offs**:
-- ❌ Limited to simple operations
-- ❌ Complex for anything beyond basic arithmetic
-- ❌ Memory ordering can be tricky to get right
+- Limited to simple operations
+- Complex for anything beyond basic arithmetic
+- Memory ordering can be tricky to get right
 
 ---
 
-### 🌪️ **Spinlock**
+### **Spinlock**
 **Kitchen Analogy**: *Hovering next to the salt shaker, constantly checking if the previous chef is done*
 
 ```cpp
@@ -110,18 +110,18 @@ salt_shaker_lock.unlock();
 - **Predictable timing** - no scheduler unpredictability
 
 **When to Use**:
-- ✅ Extremely short critical sections (< 100 cycles)
-- ✅ Real-time systems where predictability matters
-- ✅ When you have spare CPU cores available
+- Extremely short critical sections (< 100 cycles)
+- Real-time systems where predictability matters
+- When you have spare CPU cores available
 
 **Trade-offs**:
-- ❌ **Wastes CPU cycles** spinning instead of useful work
-- ❌ Terrible for longer operations
-- ❌ Can cause starvation under high contention
+- **Wastes CPU cycles** spinning instead of useful work
+- Terrible for longer operations
+- Can cause starvation under high contention
 
 ---
 
-### 📚 **Shared Mutex (Reader-Writer Lock)**
+### **Shared Mutex (Reader-Writer Lock)**
 **Kitchen Analogy**: *A recipe book where multiple chefs can read recipes simultaneously, but only one chef can update recipes*
 
 ```cpp
@@ -142,14 +142,14 @@ chef.update_recipe(dish_id, new_instructions);
 - **Better throughput** than exclusive locks for read-dominant patterns
 
 **When to Use**:
-- ✅ Data structures with >70% read operations
-- ✅ Configuration data, lookup tables, caches
-- ✅ When read operations are expensive and benefit from parallelism
+- Data structures with >70% read operations
+- Configuration data, lookup tables, caches
+- When read operations are expensive and benefit from parallelism
 
 **Trade-offs**:
-- ❌ Higher overhead than regular mutex for write operations
-- ❌ **Writer starvation** - readers can monopolize the lock
-- ❌ More complex than simple mutex
+- Higher overhead than regular mutex for write operations
+- **Writer starvation** - readers can monopolize the lock
+- More complex than simple mutex
 
 ---
 
