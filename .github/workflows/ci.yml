@@ -77,10 +77,11 @@ jobs:
           echo "timeout/gtimeout not available" >&2
           exit 1
         fi
-        "${TIMEOUT[@]}" 45s ./build/bench_counter_mutex --benchmark_filter=Counter_Mutex_Hot/1 --benchmark_min_time=0.05s
-        "${TIMEOUT[@]}" 45s ./build/bench_counter_atomic --benchmark_filter=Counter_Atomic_Relaxed/1 --benchmark_min_time=0.05s
-        "${TIMEOUT[@]}" 45s ./build/bench_counter_spin --benchmark_filter=Counter_Spin_Hot/1 --benchmark_min_time=0.05s
-        "${TIMEOUT[@]}" 60s ./build/bench_pc_semaphore --benchmark_filter=ProducerConsumer_SPSC_Semaphore/10 --benchmark_min_time=0.05s --benchmark_repetitions=2
+        "${TIMEOUT[@]}" 45s ./build/bench_counter_mutex --benchmark_filter='Counter_Mutex_Hot/1/' --benchmark_min_time=0.05s
+        "${TIMEOUT[@]}" 45s ./build/bench_counter_atomic --benchmark_filter='Counter_Atomic_Relaxed/1/' --benchmark_min_time=0.05s
+        "${TIMEOUT[@]}" 45s ./build/bench_counter_spin --benchmark_filter='Counter_Spin_Hot/1/' --benchmark_min_time=0.05s
+        # Anchor '/10/' so we do not also match /100 and /1000.
+        "${TIMEOUT[@]}" 60s ./build/bench_pc_semaphore --benchmark_filter='ProducerConsumer_SPSC_Semaphore/10/' --benchmark_min_time=0.05s --benchmark_repetitions=2
 
     - name: Run simple benchmark suite
       run: |
