@@ -47,7 +47,7 @@ jobs:
 
     - name: Install dependencies (macOS)
       if: startsWith(matrix.os, 'macos')
-      run: brew install cmake ninja
+      run: brew install cmake ninja coreutils
 
     - name: Configure CMake (Release)
       run: |
@@ -68,17 +68,33 @@ jobs:
       run: |
         set -euo pipefail
         ls -la build/bench_*
-        # Fail the job on hang/timeout (do not mask with || true).
-        timeout 45s ./build/bench_counter_mutex --benchmark_filter=Counter_Mutex_Hot/1 --benchmark_min_time=0.05s
-        timeout 45s ./build/bench_counter_atomic --benchmark_filter=Counter_Atomic_Relaxed/1 --benchmark_min_time=0.05s
-        timeout 45s ./build/bench_counter_spin --benchmark_filter=Counter_Spin_Hot/1 --benchmark_min_time=0.05s
-        timeout 60s ./build/bench_pc_semaphore --benchmark_filter=ProducerConsumer_SPSC_Semaphore/10 --benchmark_min_time=0.05s --benchmark_repetitions=2
+        # Portable timeout: GNU timeout on Linux, gtimeout (coreutils) on macOS.
+        if command -v timeout >/dev/null 2>&1; then
+          TIMEOUT=(timeout)
+        elif command -v gtimeout >/dev/null 2>&1; then
+          TIMEOUT=(gtimeout)
+        else
+          echo "timeout/gtimeout not available" >&2
+          exit 1
+        fi
+        "${TIMEOUT[@]}" 45s ./build/bench_counter_mutex --benchmark_filter=Counter_Mutex_Hot/1 --benchmark_min_time=0.05s
+        "${TIMEOUT[@]}" 45s ./build/bench_counter_atomic --benchmark_filter=Counter_Atomic_Relaxed/1 --benchmark_min_time=0.05s
+        "${TIMEOUT[@]}" 45s ./build/bench_counter_spin --benchmark_filter=Counter_Spin_Hot/1 --benchmark_min_time=0.05s
+        "${TIMEOUT[@]}" 60s ./build/bench_pc_semaphore --benchmark_filter=ProducerConsumer_SPSC_Semaphore/10 --benchmark_min_time=0.05s --benchmark_repetitions=2
 
     - name: Run simple benchmark suite
       run: |
         set -euo pipefail
         chmod +x scripts/*.sh
-        timeout 300s ./scripts/run_all_benchmarks.sh simple
+        if command -v timeout >/dev/null 2>&1; then
+          TIMEOUT=(timeout)
+        elif command -v gtimeout >/dev/null 2>&1; then
+          TIMEOUT=(gtimeout)
+        else
+          echo "timeout/gtimeout not available" >&2
+          exit 1
+        fi
+        "${TIMEOUT[@]}" 300s ./scripts/run_all_benchmarks.sh simple
 
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4

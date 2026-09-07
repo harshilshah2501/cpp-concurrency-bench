@@ -74,21 +74,15 @@ void test_semaphore_queue() {
                 return;
             }
         }
+        q2.close();  // producers done — consumers may drain then exit
     });
     std::thread consumer([&] {
         int v = 0;
-        while (consumed.load() < 100) {
-            if (q2.pop(v)) {
-                consumed.fetch_add(1);
-            } else {
-                break;
-            }
+        while (q2.pop(v)) {
+            consumed.fetch_add(1);
         }
     });
     producer.join();
-    if (consumed.load() < 100) {
-        q2.shutdown();
-    }
     consumer.join();
     expect(consumed.load() == 100, "SPSC session drains 100 items");
 }

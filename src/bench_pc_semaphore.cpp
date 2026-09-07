@@ -30,29 +30,19 @@ static void ProducerConsumer_SPSC_Semaphore(benchmark::State& state) {
                     break;
                 }
             }
+            queue.close();
         });
 
         std::thread consumer([&] {
             int item = 0;
-            while (items_consumed.load(std::memory_order_relaxed) <
-                   items_per_iteration) {
-                if (queue.pop(item)) {
-                    items_consumed.fetch_add(1, std::memory_order_relaxed);
-                } else {
-                    break;
-                }
+            while (queue.pop(item)) {
+                items_consumed.fetch_add(1, std::memory_order_relaxed);
             }
         });
 
         producer.join();
-        if (items_consumed.load(std::memory_order_relaxed) <
-            items_per_iteration) {
-            queue.shutdown();
-        }
         consumer.join();
-        if (!queue.is_shutdown()) {
-            queue.shutdown();
-        }
+        queue.shutdown();
         benchmark::DoNotOptimize(items_consumed.load());
     }
 
@@ -104,14 +94,9 @@ static void ProducerConsumer_MPMC_Semaphore(benchmark::State& state) {
         for (size_t i = 0; i < num_consumers; ++i) {
             consumers.emplace_back([&, consumer_id = i] {
                 int item = 0;
-                while (items_consumed.load(std::memory_order_relaxed) <
-                       total_items) {
-                    if (queue.pop(item)) {
-                        items_consumed.fetch_add(1, std::memory_order_relaxed);
-                        consumer_tracker.record_operation(consumer_id);
-                    } else {
-                        break;
-                    }
+                while (queue.pop(item)) {
+                    items_consumed.fetch_add(1, std::memory_order_relaxed);
+                    consumer_tracker.record_operation(consumer_id);
                 }
             });
         }
@@ -119,15 +104,11 @@ static void ProducerConsumer_MPMC_Semaphore(benchmark::State& state) {
         for (auto& producer : producers) {
             producer.join();
         }
-        if (items_consumed.load(std::memory_order_relaxed) < total_items) {
-            queue.shutdown();
-        }
+        queue.close();
         for (auto& consumer : consumers) {
             consumer.join();
         }
-        if (!queue.is_shutdown()) {
-            queue.shutdown();
-        }
+        queue.shutdown();
 
         last_producer_fairness = producer_tracker.coefficient_of_variation();
         last_consumer_fairness = consumer_tracker.coefficient_of_variation();

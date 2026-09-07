@@ -24,6 +24,16 @@ BUILD_DIR="build"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 RESULTS_DIR="${OUTPUT_DIR}/${TIMESTAMP}"
 
+# Portable timeout binary (GNU coreutils on Linux; gtimeout via brew on macOS)
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_BIN="timeout"
+elif command -v gtimeout >/dev/null 2>&1; then
+    TIMEOUT_BIN="gtimeout"
+else
+    echo "Error: timeout/gtimeout not found. On macOS: brew install coreutils" >&2
+    exit 1
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -89,7 +99,7 @@ run_benchmark() {
     
     # Run benchmark with timeout protection
     echo "  Timeout: ${timeout_duration}s | Min time: ${min_time}"
-    timeout "${timeout_duration}s" ./${BUILD_DIR}/${executable} \
+    "${TIMEOUT_BIN}" "${timeout_duration}s" ./${BUILD_DIR}/${executable} \
         --benchmark_format=json \
         --benchmark_out="${output_file}" \
         --benchmark_min_time="${min_time}" \
