@@ -1,6 +1,15 @@
-# C++ Concurrency Benchmarking - Learning Notes
+# C++ Concurrency Benchmarking — Learning Notes
 
-This file contains key questions and explanations from building and understanding the C++ concurrency benchmarking suite.
+Personal Q&A scratchpad from building the suite.
+
+**Prefer these for teaching and publishing:**
+
+- Learning path: [README.md](README.md#learning-path-recommended)
+- Exercises: [docs/EXERCISES.md](docs/EXERCISES.md)
+- Methodology: [docs/METHODOLOGY.md](docs/METHODOLOGY.md)
+- Example measured matrix: [matrix/corpus/cursor/](matrix/corpus/cursor/)
+
+---
 
 ## 📚 Table of Contents
 

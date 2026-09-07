@@ -11,7 +11,62 @@ This project helps you:
 - Measure **throughput and fairness**, not just folklore
 - Learn trade-offs with consistent analogies — then **verify locally** (we do not ship invented speedups)
 
-See [docs/METHODOLOGY.md](docs/METHODOLOGY.md) and [docs/DECISION_MATRIX.md](docs/DECISION_MATRIX.md).
+See [docs/METHODOLOGY.md](docs/METHODOLOGY.md), [docs/DECISION_MATRIX.md](docs/DECISION_MATRIX.md), and [docs/EXERCISES.md](docs/EXERCISES.md).
+
+## Learning path (recommended)
+
+Work through these in order. For each day: **predict → run → compare to your prediction**. Do not skip the predict step.
+
+| Day | Focus | Kitchen metaphor | Command |
+|-----|--------|------------------|---------|
+| 1 | Contended counters | Knife vs digital counter vs salt-shaker hover | See below |
+| 2 | Readers/writers + queues | Recipe book; kitchen bell / oven tokens | See below |
+| 3 | Tasks & async | Kitchen staff, order tickets, master chef pause/resume | See below |
+
+### Day 1 — counters (build once first)
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBENCH_NATIVE_ARCH=OFF
+cmake --build build --parallel
+
+# 1 thread, then raise thread count and watch throughput/fairness change
+./build/bench_counter_mutex  --benchmark_filter='Counter_Mutex_Hot/'   --benchmark_min_time=0.2s
+./build/bench_counter_atomic --benchmark_filter='Counter_Atomic_'      --benchmark_min_time=0.2s
+./build/bench_counter_spin   --benchmark_filter='Counter_Spin_Hot/'    --benchmark_min_time=0.2s
+```
+
+**Ask yourself:** At 1 thread, who is fastest? At `hardware_concurrency`, who collapses first?
+
+### Day 2 — sharing & coordination
+
+```bash
+./build/bench_rw_shared_mutex --benchmark_filter='SharedMutex_ReadHeavy|ExclusiveMutex_ReadHeavy' --benchmark_min_time=0.2s
+./build/bench_pc_condvar      --benchmark_min_time=0.2s
+./build/bench_pc_semaphore    --benchmark_filter='ProducerConsumer_' --benchmark_min_time=0.2s
+./build/bench_barrier         --benchmark_filter='StdBarrier_WithWork|ManualBarrier_WithWork' --benchmark_min_time=0.2s
+```
+
+**Ask yourself:** When do shared locks beat exclusive locks? When is a semaphore enough vs a condition variable?
+
+### Day 3 — tasking
+
+```bash
+./build/bench_thread_pool   --benchmark_filter='ThreadPool_CPUBound|StdAsync_CPUBound' --benchmark_min_time=0.2s
+./build/bench_async_future  --benchmark_filter='StdAsync_Launch' --benchmark_min_time=0.2s
+./build/bench_coroutines    --benchmark_filter='Coroutines_|Threads_CPUBound' --benchmark_min_time=0.2s
+```
+
+**Ask yourself:** When does thread-pool reuse beat `std::async`? What are you actually measuring with coroutine IO delays?
+
+### Capture your own matrix
+
+```bash
+./scripts/run_all_benchmarks.sh simple
+python3 scripts/build_decision_matrix.py benchmark_results/<timestamp> \
+  --out matrix/corpus/$(uname -n | tr ' /' '__')/decision_matrix.json
+```
+
+Guided exercises: [docs/EXERCISES.md](docs/EXERCISES.md). Example measured corpus: [matrix/corpus/](matrix/corpus/).
 
 ## Quick Start
 

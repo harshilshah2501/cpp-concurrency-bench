@@ -14,10 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented that `benchmark_results_simple/` is non-citable historical data; removed truncated semaphore JSON
 
 ### Added
-- `docs/METHODOLOGY.md`, `docs/DECISION_MATRIX.md`, `docs/PUBLIC_LAUNCH.md`
-- Decision matrix schema + `scripts/build_decision_matrix.py`
-- `.github/CODEOWNERS`
-- CI status / license / C++20 badges in README
+- README learning path (3-day predict→measure curriculum)
+- `docs/EXERCISES.md` and `docs/OWNER_ACTIONS.md`
+- Example Release decision matrix corpus: `matrix/corpus/cursor/`
 
 ### Fixed (correctness / CI — see prior notes)
 - Semaphore queue lifecycle hang across Google Benchmark iterations
