@@ -1,0 +1,173 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-09-07T09:52:15.529931+00:00",
+  "host": {
+    "name": "cursor",
+    "os": "Linux-6.12.94+-x86_64-with-glibc2.39",
+    "num_cpus": 4,
+    "mhz_per_cpu": 2400
+  },
+  "build": {
+    "build_type": "release",
+    "native_arch": false,
+    "notes": "Generated from /tmp/corpus_results"
+  },
+  "workloads": [
+    {
+      "id": "W.counter.hot",
+      "entries": [
+        {
+          "primitive": "mutex",
+          "benchmark": "Counter_Mutex_Hot/1/real_time_mean",
+          "items_per_second": 58129517.35579361,
+          "real_time_ns": 100.13474850029525,
+          "fairness_cv": null,
+          "source_file": "counter_mutex.json"
+        },
+        {
+          "primitive": "atomic_relaxed",
+          "benchmark": "Counter_Atomic_Relaxed/1/real_time_mean",
+          "items_per_second": 110732173.43124938,
+          "real_time_ns": 100.0981354995929,
+          "fairness_cv": null,
+          "source_file": "counter_atomic.json"
+        },
+        {
+          "primitive": "spinlock",
+          "benchmark": "Counter_Spin_Hot/1/real_time_mean",
+          "items_per_second": 90278578.73231758,
+          "real_time_ns": 100.16368649939977,
+          "fairness_cv": null,
+          "source_file": "counter_spin.json"
+        }
+      ]
+    },
+    {
+      "id": "W.atomic.mo",
+      "entries": [
+        {
+          "primitive": "seq_cst",
+          "benchmark": "Counter_Atomic_SeqCst/1/real_time_mean",
+          "items_per_second": 110532204.14378458,
+          "real_time_ns": 100.1751159997184,
+          "fairness_cv": null,
+          "source_file": "counter_atomic.json"
+        },
+        {
+          "primitive": "acq_rel",
+          "benchmark": "Counter_Atomic_AcqRel/1/real_time_mean",
+          "items_per_second": 110627064.7145232,
+          "real_time_ns": 100.21335600004022,
+          "fairness_cv": null,
+          "source_file": "counter_atomic.json"
+        },
+        {
+          "primitive": "relaxed",
+          "benchmark": "Counter_Atomic_Relaxed/1/real_time_mean",
+          "items_per_second": 110732173.43124938,
+          "real_time_ns": 100.0981354995929,
+          "fairness_cv": null,
+          "source_file": "counter_atomic.json"
+        }
+      ]
+    },
+    {
+      "id": "W.rwlock.read_heavy",
+      "entries": [
+        {
+          "primitive": "shared_mutex",
+          "benchmark": "SharedMutex_ReadHeavy_90_10/1/real_time_mean",
+          "items_per_second": 69273.35814700805,
+          "real_time_ns": 0.35736309405928124,
+          "fairness_cv": null,
+          "source_file": "rw.json"
+        },
+        {
+          "primitive": "exclusive_mutex",
+          "benchmark": "ExclusiveMutex_ReadHeavy_90_10/1/real_time_mean",
+          "items_per_second": 69862.49459257146,
+          "real_time_ns": 0.25469459964518776,
+          "fairness_cv": null,
+          "source_file": "rw.json"
+        }
+      ]
+    },
+    {
+      "id": "W.pc.bounded",
+      "entries": [
+        {
+          "primitive": "condvar",
+          "benchmark": "PC_CondVar/1/1/real_time_mean",
+          "items_per_second": 9147426.151247513,
+          "real_time_ns": 109551567.49969319,
+          "fairness_cv": null,
+          "source_file": "pc_condvar.json"
+        },
+        {
+          "primitive": "semaphore_spsc",
+          "benchmark": "ProducerConsumer_SPSC_Semaphore/10/real_time_mean",
+          "items_per_second": 1310784.3102354738,
+          "real_time_ns": 7.629067638870563,
+          "fairness_cv": null,
+          "source_file": "pc_sem.json"
+        }
+      ]
+    },
+    {
+      "id": "W.barrier.phases",
+      "entries": [
+        {
+          "primitive": "std_barrier",
+          "benchmark": "StdBarrier_WithWork/2/real_time_mean",
+          "items_per_second": 16202.486191039448,
+          "real_time_ns": 1.234402450451058,
+          "fairness_cv": null,
+          "source_file": "barrier.json"
+        },
+        {
+          "primitive": "manual_barrier",
+          "benchmark": "ManualBarrier_WithWork/2/real_time_mean",
+          "items_per_second": 127.80802993487953,
+          "real_time_ns": 1.2419452261946433,
+          "fairness_cv": null,
+          "source_file": "barrier.json"
+        }
+      ]
+    },
+    {
+      "id": "W.tasks.cpu_many",
+      "entries": [
+        {
+          "primitive": "thread_pool",
+          "benchmark": "ThreadPool_CPUBound",
+          "items_per_second": null,
+          "real_time_ns": null,
+          "fairness_cv": null,
+          "source_file": null
+        },
+        {
+          "primitive": "std_async",
+          "benchmark": "StdAsync_CPUBound",
+          "items_per_second": null,
+          "real_time_ns": null,
+          "fairness_cv": null,
+          "source_file": null
+        }
+      ]
+    },
+    {
+      "id": "W.coro.io_many",
+      "entries": [
+        {
+          "primitive": "coroutines_io",
+          "benchmark": "Coroutines_IOBound/16/real_time_mean",
+          "items_per_second": 12944.172933680182,
+          "real_time_ns": 1.236087058331729,
+          "fairness_cv": null,
+          "source_file": "coro.json"
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}

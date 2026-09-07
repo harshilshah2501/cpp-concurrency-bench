@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/harshilshah2501/cpp-concurrency-bench/matrix/schema.json",
+  "title": "ConcurrencyDecisionMatrix",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "host", "build", "workloads"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "generated_at": { "type": "string" },
+    "host": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "os": { "type": ["string", "null"] },
+        "num_cpus": { "type": ["integer", "null"] },
+        "mhz_per_cpu": { "type": ["number", "null"] }
+      }
+    },
+    "build": {
+      "type": "object",
+      "properties": {
+        "build_type": { "type": ["string", "null"] },
+        "native_arch": { "type": ["boolean", "null"] },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+    "workloads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "entries"],
+        "properties": {
+          "id": { "type": "string" },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["primitive", "benchmark"],
+              "properties": {
+                "primitive": { "type": "string" },
+                "benchmark": { "type": "string" },
+                "items_per_second": { "type": ["number", "null"] },
+                "real_time_ns": { "type": ["number", "null"] },
+                "fairness_cv": { "type": ["number", "null"] },
+                "source_file": { "type": ["string", "null"] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

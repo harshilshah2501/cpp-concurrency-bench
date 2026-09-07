@@ -1,156 +1,57 @@
 #include <benchmark/benchmark.h>
 #include <atomic>
+#include <cstdint>
 #include <thread>
-#include <vector>
+
+#include "bench_harness.hpp"
 #include "padded.hpp"
-#include "variance_tracker.hpp"
 
 // =============================================================================
 // Atomic Counter Benchmark
 // =============================================================================
-// This benchmark measures the performance of atomic operations under contention.
-// Compares different memory orderings: relaxed, acquire_release, seq_cst.
-//
-// Key insights for interviews:
-// - Atomic relaxed: Fastest but requires careful reasoning about ordering
-// - Atomic seq_cst: Slowest but provides strongest guarantees
-// - Cache line ping-ponging: Performance degrades with high contention
-// - Scalability: Usually better than mutex for simple operations
+// Compares memory orderings under contention. Each iteration uses a fresh
+// counter and a fixed wall-time worker window via bench_harness.
 // =============================================================================
 
-// Sequential consistency (strongest ordering)
+template <std::memory_order Order>
+static void Counter_Atomic_Impl(benchmark::State& state) {
+    const int num_threads = static_cast<int>(state.range(0));
+    uint64_t total_ops = 0;
+    double last_cv = 0.0;
+
+    for (auto _ : state) {
+        state.PauseTiming();
+        padded<std::atomic<uint64_t>> counter{0};
+        state.ResumeTiming();
+
+        auto window = bench_harness::run_contention_window(
+            num_threads, std::chrono::milliseconds(100),
+            [&](int /*thread_id*/) {
+                counter.fetch_add(1, Order);
+            });
+
+        state.PauseTiming();
+        total_ops += window.ops;
+        last_cv = window.fairness_cv;
+        benchmark::DoNotOptimize(counter.load());
+        state.ResumeTiming();
+    }
+
+    state.counters["ops_total"] = static_cast<double>(total_ops);
+    state.counters["fairness_cv"] = last_cv;
+    state.SetItemsProcessed(static_cast<int64_t>(total_ops));
+}
+
 static void Counter_Atomic_SeqCst(benchmark::State& state) {
-    const int num_threads = state.range(0);
-    
-    padded<std::atomic<uint64_t>> counter{0};
-    variance_tracker tracker(num_threads);
-    
-    std::vector<std::thread> threads;
-    std::atomic<bool> start{false};
-    std::atomic<bool> stop{false};
-    
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([&, thread_id = i]() {
-            while (!start.load(std::memory_order_acquire)) {
-                std::this_thread::yield();
-            }
-            
-            while (!stop.load(std::memory_order_acquire)) {
-                // Default memory ordering is seq_cst
-                counter.fetch_add(1);
-                tracker.record_operation(thread_id);
-            }
-        });
-    }
-    
-    for (auto _ : state) {
-        tracker.reset();
-        start.store(true, std::memory_order_release);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        stop.store(true, std::memory_order_release);
-        start.store(false, std::memory_order_release);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        stop.store(false, std::memory_order_release);
-    }
-    
-    stop.store(true, std::memory_order_release);
-    for (auto& t : threads) {
-        t.join();
-    }
-    
-    state.counters["ops_total"] = counter.load();
-    state.counters["fairness_cv"] = tracker.coefficient_of_variation();
-    state.SetItemsProcessed(counter.load());
+    Counter_Atomic_Impl<std::memory_order_seq_cst>(state);
 }
 
-// Relaxed ordering (weakest, fastest)
 static void Counter_Atomic_Relaxed(benchmark::State& state) {
-    const int num_threads = state.range(0);
-    
-    padded<std::atomic<uint64_t>> counter{0};
-    variance_tracker tracker(num_threads);
-    
-    std::vector<std::thread> threads;
-    std::atomic<bool> start{false};
-    std::atomic<bool> stop{false};
-    
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([&, thread_id = i]() {
-            while (!start.load(std::memory_order_acquire)) {
-                std::this_thread::yield();
-            }
-            
-            while (!stop.load(std::memory_order_acquire)) {
-                // Relaxed ordering - no synchronization guarantees
-                counter.fetch_add(1, std::memory_order_relaxed);
-                tracker.record_operation(thread_id);
-            }
-        });
-    }
-    
-    for (auto _ : state) {
-        tracker.reset();
-        start.store(true, std::memory_order_release);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        stop.store(true, std::memory_order_release);
-        start.store(false, std::memory_order_release);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        stop.store(false, std::memory_order_release);
-    }
-    
-    stop.store(true, std::memory_order_release);
-    for (auto& t : threads) {
-        t.join();
-    }
-    
-    state.counters["ops_total"] = counter.load();
-    state.counters["fairness_cv"] = tracker.coefficient_of_variation();
-    state.SetItemsProcessed(counter.load());
+    Counter_Atomic_Impl<std::memory_order_relaxed>(state);
 }
 
-// Acquire-release ordering (middle ground)
 static void Counter_Atomic_AcqRel(benchmark::State& state) {
-    const int num_threads = state.range(0);
-    
-    padded<std::atomic<uint64_t>> counter{0};
-    variance_tracker tracker(num_threads);
-    
-    std::vector<std::thread> threads;
-    std::atomic<bool> start{false};
-    std::atomic<bool> stop{false};
-    
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([&, thread_id = i]() {
-            while (!start.load(std::memory_order_acquire)) {
-                std::this_thread::yield();
-            }
-            
-            while (!stop.load(std::memory_order_acquire)) {
-                // Acquire-release ordering
-                counter.fetch_add(1, std::memory_order_acq_rel);
-                tracker.record_operation(thread_id);
-            }
-        });
-    }
-    
-    for (auto _ : state) {
-        tracker.reset();
-        start.store(true, std::memory_order_release);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        stop.store(true, std::memory_order_release);
-        start.store(false, std::memory_order_release);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        stop.store(false, std::memory_order_release);
-    }
-    
-    stop.store(true, std::memory_order_release);
-    for (auto& t : threads) {
-        t.join();
-    }
-    
-    state.counters["ops_total"] = counter.load();
-    state.counters["fairness_cv"] = tracker.coefficient_of_variation();
-    state.SetItemsProcessed(counter.load());
+    Counter_Atomic_Impl<std::memory_order_acq_rel>(state);
 }
 
 BENCHMARK(Counter_Atomic_SeqCst)

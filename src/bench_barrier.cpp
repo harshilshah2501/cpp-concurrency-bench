@@ -1,5 +1,6 @@
 #include <benchmark/benchmark.h>
 #include <barrier>
+#include <cmath>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
@@ -79,61 +80,72 @@ static void StdBarrier_WithWork(benchmark::State& state) {
     const int num_threads = state.range(0);
     const int num_phases = 10;
     const auto work_duration = std::chrono::microseconds(100);
-    
+
     for (auto _ : state) {
         std::barrier sync_point(num_threads);
-        variance_tracker arrival_variance(num_threads);
-        std::vector<std::chrono::nanoseconds> arrival_times(num_threads);
-        
-        auto start_time = std::chrono::high_resolution_clock::now();
-        
+        // Per-phase start times published by thread 0 after each barrier.
+        std::vector<std::chrono::high_resolution_clock::time_point> phase_starts(
+            static_cast<size_t>(num_phases));
+        std::vector<std::chrono::nanoseconds> last_arrival(
+            static_cast<size_t>(num_threads));
+        phase_starts[0] = std::chrono::high_resolution_clock::now();
+
         std::vector<std::thread> threads;
-        
         for (int i = 0; i < num_threads; ++i) {
             threads.emplace_back([&, thread_id = i] {
                 for (int phase = 0; phase < num_phases; ++phase) {
-                    // Simulate some work
                     simulate_work(work_duration);
-                    
-                    // Record arrival time for variance analysis
-                    auto arrival_time = std::chrono::high_resolution_clock::now();
-                    arrival_times[thread_id] = arrival_time - start_time;
-                    
-                    // Synchronize at barrier
+
+                    auto arrival_time =
+                        std::chrono::high_resolution_clock::now();
+                    // phase_starts[phase] is published before this phase begins
+                    // (phase 0 before launch; later phases by thread 0 after
+                    // the previous barrier, before the next arrive_and_wait).
+                    last_arrival[static_cast<size_t>(thread_id)] =
+                        arrival_time - phase_starts[static_cast<size_t>(phase)];
+
                     sync_point.arrive_and_wait();
-                    
-                    // Update start time for next phase
-                    if (thread_id == 0) {
-                        start_time = std::chrono::high_resolution_clock::now();
+
+                    if (thread_id == 0 && phase + 1 < num_phases) {
+                        phase_starts[static_cast<size_t>(phase + 1)] =
+                            std::chrono::high_resolution_clock::now();
+                    }
+                    // Ensure all threads observe the next phase start before
+                    // continuing (thread 0 publishes after the barrier).
+                    if (phase + 1 < num_phases) {
+                        sync_point.arrive_and_wait();
                     }
                 }
             });
         }
-        
+
         for (auto& t : threads) {
             t.join();
         }
-        
-        // Calculate arrival time variance for the last phase
+
         std::vector<double> arrival_ns;
-        for (const auto& time : arrival_times) {
+        arrival_ns.reserve(static_cast<size_t>(num_threads));
+        for (const auto& time : last_arrival) {
             arrival_ns.push_back(static_cast<double>(time.count()));
         }
-        
-        double mean = std::accumulate(arrival_ns.begin(), arrival_ns.end(), 0.0) / arrival_ns.size();
+
+        double mean =
+            std::accumulate(arrival_ns.begin(), arrival_ns.end(), 0.0) /
+            arrival_ns.size();
         double variance = 0.0;
         for (double time : arrival_ns) {
             variance += (time - mean) * (time - mean);
         }
         variance /= arrival_ns.size();
-        double cv = std::sqrt(variance) / mean;
-        
+        double cv = mean > 0.0 ? std::sqrt(variance) / mean : 0.0;
+
         state.counters["arrival_cv"] = cv;
     }
-    
+
     state.counters["phases"] = num_phases;
     state.counters["work_us"] = work_duration.count();
-    state.SetItemsProcessed(num_phases * num_threads);
+    state.SetItemsProcessed(static_cast<int64_t>(state.iterations()) *
+                            num_phases * num_threads);
 }
 
 // Manual barrier benchmark for comparison

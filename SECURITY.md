@@ -10,21 +10,12 @@ We support the latest version of the C++ Concurrency Benchmarking Suite:
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability within this benchmarking suite, please follow these steps:
+If you discover a security vulnerability within this benchmarking suite, please report it via one of:
 
-### For Performance-Related Security Issues
-- **Timing attacks** or **side-channel vulnerabilities** in benchmark implementations
-- **Resource exhaustion** patterns that could be exploited
-- **Race conditions** that could lead to undefined behavior
+1. **GitHub Security Advisories**: use [Report a vulnerability](https://github.com/harshilshah2501/cpp-concurrency-bench/security/advisories/new) on this repository (preferred).
+2. **GitHub Issue**: open a private maintainer discussion or issue titled `[SECURITY]` if advisories are unavailable.
 
-### How to Report
-
-1. **Email**: Send details to the maintainer (create an issue if no direct contact)
-2. **Include**:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact on benchmark results or system security
-   - Suggested fix (if available)
+Do **not** post exploit details in public issues when the impact could affect systems that reuse these patterns.
 
 ### Response Timeline
 

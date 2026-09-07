@@ -9,43 +9,29 @@ on:
 jobs:
   build-and-test:
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-20.04, macos-12, macos-13]
-        compiler: [gcc, clang]
-        exclude:
-          - os: macos-12
-            compiler: gcc
-          - os: macos-13
-            compiler: gcc
         include:
           - os: ubuntu-22.04
-            compiler: gcc
-            package: gcc-11 g++-11
             cc: gcc-11
             cxx: g++-11
-          - os: ubuntu-20.04
-            compiler: gcc
-            package: gcc-10 g++-10
-            cc: gcc-10
-            cxx: g++-10
+            package: gcc-11 g++-11
+          - os: ubuntu-24.04
+            cc: gcc-13
+            cxx: g++-13
+            package: gcc-13 g++-13
           - os: ubuntu-22.04
-            compiler: clang
-            package: clang-14
             cc: clang-14
             cxx: clang++-14
-          - os: ubuntu-20.04
-            compiler: clang
-            package: clang-12
-            cc: clang-12
-            cxx: clang++-12
-          - os: macos-12
-            compiler: clang
+            package: clang-14
+          - os: ubuntu-24.04
+            cc: clang-18
+            cxx: clang++-18
+            package: clang-18
+          - os: macos-14
             cc: clang
             cxx: clang++
-          - os: macos-13
-            compiler: clang
-            cc: clang
-            cxx: clang++
+            package: ""
 
     runs-on: ${{ matrix.os }}
 
@@ -61,49 +47,64 @@ jobs:
 
     - name: Install dependencies (macOS)
       if: startsWith(matrix.os, 'macos')
-      run: |
-        brew install cmake ninja
-
-    - name: Setup C++ compiler
-      run: |
-        echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
-        echo "CXX=${{ matrix.cxx }}" >> $GITHUB_ENV
+      run: brew install cmake ninja coreutils
 
     - name: Configure CMake (Release)
       run: |
         cmake -B build \
               -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
+              -DBENCH_NATIVE_ARCH=OFF \
               -DCMAKE_C_COMPILER=${{ matrix.cc }} \
               -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
 
     - name: Build
       run: cmake --build build --parallel
 
-    - name: Test build artifacts
+    - name: Unit smoke tests
+      run: ctest --test-dir build --output-on-failure
+
+    - name: Smoke-test benchmark binaries
       run: |
-        # Check that all benchmark executables were created
+        set -euo pipefail
         ls -la build/bench_*
-        
-        # Quick smoke test - run each benchmark for minimal time
-        timeout 30s ./build/bench_counter_mutex --benchmark_min_time=0.01s || echo "Mutex benchmark completed"
-        timeout 30s ./build/bench_counter_atomic --benchmark_min_time=0.01s || echo "Atomic benchmark completed"
-        timeout 30s ./build/bench_counter_spin --benchmark_min_time=0.01s || echo "Spinlock benchmark completed"
+        # Portable timeout: GNU timeout on Linux, gtimeout (coreutils) on macOS.
+        if command -v timeout >/dev/null 2>&1; then
+          TIMEOUT=(timeout)
+        elif command -v gtimeout >/dev/null 2>&1; then
+          TIMEOUT=(gtimeout)
+        else
+          echo "timeout/gtimeout not available" >&2
+          exit 1
+        fi
+        "${TIMEOUT[@]}" 45s ./build/bench_counter_mutex --benchmark_filter='Counter_Mutex_Hot/1/' --benchmark_min_time=0.05s
+        "${TIMEOUT[@]}" 45s ./build/bench_counter_atomic --benchmark_filter='Counter_Atomic_Relaxed/1/' --benchmark_min_time=0.05s
+        "${TIMEOUT[@]}" 45s ./build/bench_counter_spin --benchmark_filter='Counter_Spin_Hot/1/' --benchmark_min_time=0.05s
+        # Anchor '/10/' so we do not also match /100 and /1000.
+        "${TIMEOUT[@]}" 60s ./build/bench_pc_semaphore --benchmark_filter='ProducerConsumer_SPSC_Semaphore/10/' --benchmark_min_time=0.05s --benchmark_repetitions=2
 
     - name: Run simple benchmark suite
       run: |
-        # Run quick test suite (avoid semaphore which has known hanging issue)
-        chmod +x scripts/run_all_benchmarks.sh
-        timeout 300s ./scripts/run_all_benchmarks.sh simple || echo "Simple benchmark suite completed"
+        set -euo pipefail
+        chmod +x scripts/*.sh
+        if command -v timeout >/dev/null 2>&1; then
+          TIMEOUT=(timeout)
+        elif command -v gtimeout >/dev/null 2>&1; then
+          TIMEOUT=(gtimeout)
+        else
+          echo "timeout/gtimeout not available" >&2
+          exit 1
+        fi
+        "${TIMEOUT[@]}" 300s ./scripts/run_all_benchmarks.sh simple
 
     - name: Upload benchmark results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: benchmark-results-${{ matrix.os }}-${{ matrix.compiler }}
+        name: benchmark-results-${{ matrix.os }}-${{ matrix.cc }}
         path: |
           benchmark_results/
-          build/*.json
+        if-no-files-found: ignore
         retention-days: 7
 
   documentation:
@@ -111,20 +112,32 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Check documentation
       run: |
-        # Verify all documentation files exist
+        set -euo pipefail
         test -f README.md
         test -f CONTRIBUTING.md
         test -f LICENSE
         test -f CHANGELOG.md
         test -f SECURITY.md
-        
-        # Check for broken links in markdown (basic check)
-        grep -n "http" *.md || echo "No external links found"
-        
-        # Verify script permissions
+        test -f AUDIT.md
+        test -f docs/METHODOLOGY.md
+        test -f docs/DECISION_MATRIX.md
+        test -f docs/EXERCISES.md
+        test -f docs/OWNER_ACTIONS.md
+        test -f docs/PUBLIC_LAUNCH.md
+        test -f matrix/corpus/cursor/decision_matrix.json
+        test -f matrix/corpus/cursor/HOST.md
+        test -f matrix/schema.json
+        test -f scripts/build_decision_matrix.py
+        # No unresolved merge conflict markers in tracked docs/config
+        ! grep -RInE '^(<<<<<<<|>>>>>>>|=======)$' README.md CHANGELOG.md SECURITY.md CONTRIBUTING.md .gitignore AUDIT.md docs
+        # Guard against reintroducing fabricated GB-scale thread tables
+        ! grep -nE '800 GB|DRAMATICALLY CONFIRMED|All Hypotheses Validated' README.md
+        # Learning path anchors present
+        grep -q 'Learning path' README.md
+        grep -q 'predict → run → compare' README.md
         test -x scripts/run_all_benchmarks.sh
         test -x scripts/debug_benchmarks.sh
         test -x scripts/compare_results.sh
@@ -138,32 +151,33 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y clang-format-14 cppcheck
+        sudo apt-get install -y clang-format-14 cppcheck shellcheck
 
     - name: Check code formatting
       run: |
-        # Check C++ code formatting (if .clang-format exists)
-        if [ -f .clang-format ]; then
-          find src/ include/ common/ -name "*.cpp" -o -name "*.hpp" | \
-            xargs clang-format-14 --dry-run --Werror
-        else
-          echo "No .clang-format file found, skipping format check"
+        set -euo pipefail
+        # Report formatting drift but do not hard-fail until the tree is fully formatted.
+        # Tracked as a quality signal; enable --Werror once format is normalized.
+        find src/ include/ common/ tests/ -name '*.cpp' -o -name '*.hpp' | \
+          xargs clang-format-14 --dry-run 2>&1 | tee format-report.txt || true
+        if grep -q 'warning:' format-report.txt; then
+          echo "::warning::clang-format reported style drift (see format-report.txt)"
         fi
 
     - name: Static analysis
       run: |
-        # Run basic static analysis
         cppcheck --enable=warning,performance,portability \
                  --std=c++20 \
                  --suppress=missingIncludeSystem \
-                 src/ include/ common/ || echo "Static analysis completed"
+                 src/ include/ common/ tests/ 2>&1 | tee cppcheck.txt || true
+        if grep -E 'error:' cppcheck.txt; then
+          echo "cppcheck reported errors" >&2
+          exit 1
+        fi
+        echo "::notice::cppcheck completed (see cppcheck.txt)"
 
-    - name: Check for common issues
+    - name: ShellCheck
       run: |
-        # Check for potential issues in shell scripts
-        command -v shellcheck >/dev/null && {
-          find scripts/ -name "*.sh" -exec shellcheck {} + || echo "Shell script check completed"
-        } || echo "shellcheck not available"
-        
-        # Check for TODO/FIXME in our code (not dependencies)
-        grep -r "TODO\|FIXME" src/ include/ common/ scripts/ || echo "No TODO/FIXME found"
+        # Soft gate: report issues without failing the job until scripts are fully clean.
+        find scripts/ -name '*.sh' -print0 | xargs -0 shellcheck || \
+          echo "::warning::shellcheck reported issues"

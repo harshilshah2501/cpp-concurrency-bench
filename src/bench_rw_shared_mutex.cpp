@@ -33,47 +33,46 @@ class ReadWriteData {
 private:
     mutable std::shared_mutex shared_mtx_;
     mutable std::mutex exclusive_mtx_;
-    std::unordered_map<int, int> data_;
-    
-    // Initialize with some data
-    void initialize(size_t size) {
+    std::unordered_map<int, int> shared_data_;
+    std::unordered_map<int, int> exclusive_data_;
+
+    static void initialize(std::unordered_map<int, int>& data, size_t size) {
         for (size_t i = 0; i < size; ++i) {
-            data_[static_cast<int>(i)] = static_cast<int>(i * 2);
+            data[static_cast<int>(i)] = static_cast<int>(i * 2);
         }
     }
 
 public:
     ReadWriteData(size_t initial_size = 1000) {
-        initialize(initial_size);
+        initialize(shared_data_, initial_size);
+        initialize(exclusive_data_, initial_size);
     }
-    
-    // Shared mutex operations
+
     int shared_read(int key) const {
         std::shared_lock<std::shared_mutex> lock(shared_mtx_);
-        auto it = data_.find(key);
-        return it != data_.end() ? it->second : -1;
+        auto it = shared_data_.find(key);
+        return it != shared_data_.end() ? it->second : -1;
     }
-    
+
     void shared_write(int key, int value) {
         std::unique_lock<std::shared_mutex> lock(shared_mtx_);
-        data_[key] = value;
+        shared_data_[key] = value;
     }
-    
-    // Exclusive mutex operations (for comparison)
+
     int exclusive_read(int key) const {
         std::lock_guard<std::mutex> lock(exclusive_mtx_);
-        auto it = data_.find(key);
-        return it != data_.end() ? it->second : -1;
+        auto it = exclusive_data_.find(key);
+        return it != exclusive_data_.end() ? it->second : -1;
     }
-    
+
     void exclusive_write(int key, int value) {
         std::lock_guard<std::mutex> lock(exclusive_mtx_);
-        data_[key] = value;
+        exclusive_data_[key] = value;
     }
-    
+
     size_t size() const {
         std::shared_lock<std::shared_mutex> lock(shared_mtx_);
-        return data_.size();
+        return shared_data_.size();
     }
 };
 

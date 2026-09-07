@@ -1,36 +1,93 @@
 # C++ Concurrency Benchmarking Suite
 
-A comprehensive benchmarking framework for C++ concurrency primitives designed to provide data-driven insights for production system design decisions.
+[![CI](https://github.com/harshilshah2501/cpp-concurrency-bench/actions/workflows/ci.yml/badge.svg)](https://github.com/harshilshah2501/cpp-concurrency-bench/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-orange.svg)](CMakeLists.txt)
 
-## Objective
+Runnable C++20 benchmarks for standard concurrency primitives, with kitchen analogies for teaching and a **measured decision matrix** you generate on your own machine.
 
-This project benchmarks various C++ synchronization mechanisms to help developers:
-- **Make informed decisions** about which concurrency primitive to use
-- **Understand trade-offs** between throughput, latency, fairness, and complexity
-- **Identify optimal use cases** for each synchronization mechanism
+This project helps you:
+- Compare `mutex`, atomics, spinlocks, shared locks, PC queues, barriers, pools, futures, and coroutines
+- Measure **throughput and fairness**, not just folklore
+- Learn trade-offs with consistent analogies — then **verify locally** (we do not ship invented speedups)
+
+See [docs/METHODOLOGY.md](docs/METHODOLOGY.md), [docs/DECISION_MATRIX.md](docs/DECISION_MATRIX.md), and [docs/EXERCISES.md](docs/EXERCISES.md).
+
+## Learning path (recommended)
+
+Work through these in order. For each day: **predict → run → compare to your prediction**. Do not skip the predict step.
+
+| Day | Focus | Kitchen metaphor | Command |
+|-----|--------|------------------|---------|
+| 1 | Contended counters | Knife vs digital counter vs salt-shaker hover | See below |
+| 2 | Readers/writers + queues | Recipe book; kitchen bell / oven tokens | See below |
+| 3 | Tasks & async | Kitchen staff, order tickets, master chef pause/resume | See below |
+
+### Day 1 — counters (build once first)
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBENCH_NATIVE_ARCH=OFF
+cmake --build build --parallel
+
+# 1 thread, then raise thread count and watch throughput/fairness change
+./build/bench_counter_mutex  --benchmark_filter='Counter_Mutex_Hot/'   --benchmark_min_time=0.2s
+./build/bench_counter_atomic --benchmark_filter='Counter_Atomic_'      --benchmark_min_time=0.2s
+./build/bench_counter_spin   --benchmark_filter='Counter_Spin_Hot/'    --benchmark_min_time=0.2s
+```
+
+**Ask yourself:** At 1 thread, who is fastest? At `hardware_concurrency`, who collapses first?
+
+### Day 2 — sharing & coordination
+
+```bash
+./build/bench_rw_shared_mutex --benchmark_filter='SharedMutex_ReadHeavy|ExclusiveMutex_ReadHeavy' --benchmark_min_time=0.2s
+./build/bench_pc_condvar      --benchmark_min_time=0.2s
+./build/bench_pc_semaphore    --benchmark_filter='ProducerConsumer_' --benchmark_min_time=0.2s
+./build/bench_barrier         --benchmark_filter='StdBarrier_WithWork|ManualBarrier_WithWork' --benchmark_min_time=0.2s
+```
+
+**Ask yourself:** When do shared locks beat exclusive locks? When is a semaphore enough vs a condition variable?
+
+### Day 3 — tasking
+
+```bash
+./build/bench_thread_pool   --benchmark_filter='ThreadPool_CPUBound|StdAsync_CPUBound' --benchmark_min_time=0.2s
+./build/bench_async_future  --benchmark_filter='StdAsync_Launch' --benchmark_min_time=0.2s
+./build/bench_coroutines    --benchmark_filter='Coroutines_|Threads_CPUBound' --benchmark_min_time=0.2s
+```
+
+**Ask yourself:** When does thread-pool reuse beat `std::async`? What are you actually measuring with coroutine IO delays?
+
+### Capture your own matrix
+
+```bash
+./scripts/run_all_benchmarks.sh simple
+python3 scripts/build_decision_matrix.py benchmark_results/<timestamp> \
+  --out matrix/corpus/$(uname -n | tr ' /' '__')/decision_matrix.json
+```
+
+Guided exercises: [docs/EXERCISES.md](docs/EXERCISES.md). Example measured corpus: [matrix/corpus/](matrix/corpus/).
 
 ## Quick Start
 
 ```bash
 # Clone and setup
-git clone https://github.com/YOUR_USERNAME/cpp-concurrency-bench.git
+git clone https://github.com/harshilshah2501/cpp-concurrency-bench.git
 cd cpp-concurrency-bench
-mkdir build && cd build
-
-# Configure and build (requires C++20)
-cmake ..
-make -j$(nproc)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+# Optional local-only: -DBENCH_NATIVE_ARCH=ON
+cmake --build build --parallel
 
 # Run comprehensive benchmark suite
-../scripts/run_all_benchmarks.sh full
+./scripts/run_all_benchmarks.sh full
 
 # Or run quick comparison of core primitives
-../scripts/run_all_benchmarks.sh simple
+./scripts/run_all_benchmarks.sh simple
 
 # Or run individual benchmarks
-./bench_counter_mutex
-./bench_rw_shared_mutex
-./bench_coroutines
+./build/bench_counter_mutex
+./build/bench_rw_shared_mutex
+./build/bench_coroutines
 ```
 
 ## Understanding Concurrency: Analogies and Real-World Problems
@@ -593,197 +650,44 @@ variance_tracker tracker(num_threads);
 double fairness = tracker.coefficient_of_variation();
 ```
 
-## 📊 **Benchmark Results Analysis: Proving Our Hypotheses**
+## How to read results (honesty first)
 
-### **🧪 Hypothesis Testing with Real Data**
+Kitchen analogies teach *intuition*. **Numbers must come from your machine.**
 
-Let's validate our kitchen analogies and theoretical predictions with actual benchmark results from our test suite:
+This repository intentionally does **not** publish absolute ops/s tables in the README.
+Absolute throughput varies wildly with CPU, governor, library build type, and thread count.
+Older drafts of this README included illustrative tables that looked like measurements —
+those have been removed.
 
----
+### Generate evidence locally
 
-### **📈 Counter Synchronization: The Great Kitchen Knife Test**
-
-**Hypothesis**: *Atomic operations should outperform mutex for simple counters, while spinlocks should excel in ultra-short operations.*
-
-#### **Actual Results** (Single-threaded baseline):
-```
-Primitive               | Throughput (ops/s) | Performance vs Mutex
------------------------|-------------------|---------------------
-Mutex (baseline)       | 23,091,413        | 1.00x (100%)
-Atomic (relaxed)       | 32,896,205        | 1.42x (142%)
-Spinlock               | 25,035,362        | 1.08x (108%)
-Shared Mutex (reads)   | 34,978            | 0.0015x (0.15%)
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBENCH_NATIVE_ARCH=OFF
+cmake --build build --parallel
+./scripts/run_all_benchmarks.sh simple
+python3 scripts/build_decision_matrix.py benchmark_results/<timestamp> \
+  --out matrix/generated/decision_matrix.json
 ```
 
-#### **✅ Hypothesis CONFIRMED**:
-1. **Atomic wins by 42%** - The digital order counter beats the premium knife!
-2. **Spinlock modest 8% improvement** - Hovering by the salt shaker has slight advantage
-3. **Shared mutex terrible for writes** - Reading the recipe book is 660x slower for updates!
+- Methodology: [docs/METHODOLOGY.md](docs/METHODOLOGY.md)
+- Decision matrix: [docs/DECISION_MATRIX.md](docs/DECISION_MATRIX.md)
+- Public launch checklist: [docs/PUBLIC_LAUNCH.md](docs/PUBLIC_LAUNCH.md)
 
-#### **🔍 Deep Dive Analysis**:
-```cpp
-// Why atomics win for counters:
-std::atomic<int> orders{0};
-orders.fetch_add(1, std::memory_order_relaxed);  // Lock-free, cache-line optimized
+### Qualitative expectations (hypotheses to test — not confirmed facts)
 
-// Why mutex has overhead:
-std::mutex order_lock;
-std::lock_guard<std::mutex> lock(order_lock);     // Kernel syscall overhead
-orders++;                                          // Simple operation, complex protection
-```
+| Kitchen tool | Expect to shine when… | Expect pain when… |
+|--------------|----------------------|-------------------|
+| Mutex | Complex critical sections; fairness matters | Ultra-hot tiny counters |
+| Atomic | Simple RMW / counters | Multi-word invariants |
+| Spinlock | Tiny CS + spare cores | Threads ≫ cores; long CS |
+| Shared mutex | Strongly read-heavy | Write-heavy / writer latency SLOs |
+| Cond var | Complex wake predicates | Simple slot counting (semaphore may be simpler) |
+| Semaphore | Counted permits / bounded buffers | Rich logical conditions |
+| Barrier | Bulk-synchronous phases | Over-sync of tiny phases |
+| Thread pool | Many small CPU tasks | Tiny one-off tasks (overhead) vs unbounded async storms |
+| Coroutines | Many waiters / structured async | Treating them as free parallelism without a scheduler |
 
-**Kitchen Insight**: Using a premium knife (mutex) to add salt (simple counter) is overkill!
-
----
-
-### **⚖️ Memory Ordering: The Precision vs Speed Trade-off**
-
-**Hypothesis**: *Relaxed ordering should be fastest, sequential consistency should be safest but slowest.*
-
-#### **Actual Results** (Atomic operations):
-```
-Memory Ordering         | Throughput (ops/s) | Relative Performance
------------------------|-------------------|---------------------
-Relaxed                | 32,896,205        | 100% (baseline)
-Acquire-Release        | ~28,500,000       | 87% (13% slower)
-Sequential Consistency | ~24,500,000       | 74% (26% slower)
-```
-
-#### **✅ Hypothesis CONFIRMED**:
-- **Relaxed ordering**: Like chefs working independently - fastest but loose coordination
-- **Sequential consistency**: Like chefs following strict turn-taking - safest but 26% slower
-
-**Kitchen Insight**: Sometimes chefs can work loosely coordinated (relaxed), sometimes they need strict order (seq_cst).
-
----
-
-### **📚 Shared Mutex: The Recipe Book Read/Write Analysis**
-
-**Hypothesis**: *Shared mutex should excel when >70% operations are reads, but writers might starve.*
-
-#### **Actual Results** (Read-heavy workload 90/10):
-```
-Scenario               | Throughput (ops/s) | Reader Performance
------------------------|-------------------|-------------------
-Shared Mutex (90% reads) | 34,978          | Excellent for reads
-Regular Mutex (90% reads) | ~8,500          | 4x slower!
-```
-
-#### **✅ Hypothesis CONFIRMED**:
-- **4x improvement** for read-heavy scenarios (90% reads)
-- **Break-even point**: Around 70% reads (as predicted)
-- **Writer starvation observed**: Writers waited longer in high-read scenarios
-
-**Kitchen Insight**: Multiple chefs reading recipes simultaneously works great, but updating the recipe book becomes a bottleneck.
-
----
-
-### **🌪️ Spinlock vs Mutex: The Contention Catastrophe**
-
-**Hypothesis**: *Spinlocks should only be beneficial for extremely short critical sections.*
-
-#### **Multi-threaded Results** (4 threads, varying critical section length):
-
-```
-Critical Section Length | Spinlock (ops/s) | Mutex (ops/s) | Winner
------------------------|------------------|---------------|--------
-1-10 cycles (seasoning) | 18,500,000      | 15,200,000    | Spinlock +22%
-100 cycles (prep work)  | 12,300,000      | 14,800,000    | Mutex +20%
-1000+ cycles (cooking)  | 2,100,000       | 8,900,000     | Mutex +324%
-```
-
-#### **✅ Hypothesis CONFIRMED**:
-- **Short operations**: Spinlock wins by 22% (hovering by salt shaker works!)
-- **Medium operations**: Mutex takes over (+20% better)
-- **Long operations**: Mutex dominates (+324% - spinning wastes massive CPU!)
-
-**Kitchen Insight**: Hovering for seasoning = good. Hovering while someone makes sauce = disaster!
-
----
-
-### **🚦 Producer-Consumer: Bell vs Tokens Analysis**
-
-**Hypothesis**: *Condition variables should be more flexible, semaphores simpler for counting scenarios.*
-
-#### **Actual Results** (1000 items processed):
-```
-Coordination Method    | Avg Latency (μs) | CPU Usage | Code Complexity
------------------------|------------------|-----------|----------------
-Condition Variable     | 245             | 78%       | High (flexible)
-Counting Semaphore     | 220             | 82%       | Low (simple)
-Binary Semaphore       | 235             | 80%       | Medium
-```
-
-#### **✅ Hypothesis CONFIRMED**:
-- **Semaphores 10% faster** for simple producer-consumer
-- **Condition variables more flexible** but slightly higher latency
-- **CPU usage similar** across all methods
-
-**Kitchen Insight**: Oven tokens (semaphores) work great for simple counting. Kitchen bells (condition variables) better for complex "when ingredients arrive AND prep is done" scenarios.
-
----
-
-### **🏊 Thread Pool vs Async: The Task Distribution Challenge**
-
-**Hypothesis**: *Thread pools should win for many small tasks, async for occasional large tasks.*
-
-#### **Actual Results** (10,000 tasks):
-
-```
-Task Type              | Thread Pool (ms) | std::async (ms) | Performance Gain
------------------------|------------------|-----------------|------------------
-Small CPU tasks        | 1,250           | 4,800           | 284% faster
-Large I/O tasks        | 2,100           | 2,300           | 9% faster  
-Mixed workload         | 1,800           | 3,200           | 78% faster
-```
-
-#### **✅ Hypothesis CONFIRMED**:
-- **Thread pool dominates** for small tasks (284% faster!)
-- **Similar performance** for large I/O tasks
-- **Thread creation overhead** kills std::async for high task counts
-
-**Kitchen Insight**: Dedicated kitchen staff (thread pool) much better than hiring temp chefs (std::async) for every small order!
-
----
-
-### **🕸️ Coroutines vs Threads: Memory Efficiency Validation**
-
-**Hypothesis**: *Coroutines should use significantly less memory for high concurrent task counts.*
-
-#### **Actual Results** (100,000 concurrent tasks):
-```
-Implementation         | Memory Usage (GB) | Task Switching (μs) | Scalability
------------------------|-------------------|--------------------|-----------
-Traditional Threads    | 800 GB           | 50-200             | Poor
-Stackful Coroutines    | 200 GB           | 10-30              | Good  
-Stackless Coroutines   | 8 GB             | 1-5                | Excellent
-```
-
-#### **✅ Hypothesis DRAMATICALLY CONFIRMED**:
-- **100x less memory** than threads (8GB vs 800GB!)
-- **10-40x faster** task switching
-- **Perfect scalability** to millions of tasks
-
-**Kitchen Insight**: Master chefs who can pause/resume (coroutines) vs hiring 100,000 individual chefs (threads) - no contest!
-
----
-
-### **🎯 Summary: All Hypotheses Validated!**
-
-| **Kitchen Tool** | **Predicted Best Use** | **Benchmark Confirms** | **Performance Gain** |
-|------------------|------------------------|------------------------|----------------------|
-| **Premium Knife (Mutex)** | Complex state | ✅ Complex operations | Baseline |
-| **Digital Counter (Atomic)** | Simple counters | ✅ Simple ops | +42% |
-| **Salt Shaker Hover (Spinlock)** | Ultra-short | ✅ <100 cycles | +22% |
-| **Recipe Book (Shared Mutex)** | Read-heavy | ✅ >70% reads | +400% |
-| **Kitchen Bell (Cond Var)** | Complex coordination | ✅ Flexible signaling | Best flexibility |
-| **Oven Tokens (Semaphore)** | Resource counting | ✅ Simple counting | +10% performance |
-| **Staff Meeting (Barrier)** | Phase sync | ✅ Bulk coordination | Linear scaling |
-| **Kitchen Staff (Thread Pool)** | Many tasks | ✅ High task count | +284% |
-| **Order Receipt (Async)** | Occasional tasks | ✅ Large I/O tasks | Similar |
-| **Master Chef (Coroutines)** | Million tasks | ✅ Massive scale | +10000% memory |
-
-**🏆 Key Insight Proven**: Each concurrency primitive has a **sweet spot** where it dramatically outperforms others. Choose the right kitchen tool for the job!
+After you measure, fill the decision matrix JSON and keep the raw Google Benchmark JSON beside it.
 
 ## 🎯 Benchmarking Results
 
@@ -806,16 +710,14 @@ Stackless Coroutines   | 8 GB             | 1-5                | Excellent
 4. **Memory Ordering**: `relaxed` ~2x faster than `seq_cst` in contended scenarios
 5. **False Sharing**: Can reduce performance by 10-50x even with correct synchronization
 
-## ⚠️ Known Issues
+## Known issues / limitations
 
-### Semaphore Benchmark Hanging
-**Issue**: The `bench_pc_semaphore` benchmark currently has thread coordination issues that can cause it to hang indefinitely.
+- **Windows**: not a first-class target. Scripts and affinity helpers assume Linux/macOS. Contributions welcome with CI.
+- **Numbers vary by host**: never compare README folklore across laptops; regenerate the decision matrix.
+- **Debug builds skew results**: always use `CMAKE_BUILD_TYPE=Release` for comparisons.
+- **Historical sample JSON** under `benchmark_results_simple/` may be incomplete or from Debug builds — do not cite.
 
-**Root Cause**: Race conditions in the producer-consumer shutdown logic where threads can get stuck waiting on semaphores that are never released properly.
-
-**Workaround**: The semaphore benchmark is temporarily disabled in full mode execution until the coordination logic is fixed.
-
-**Technical Details**: The issue occurs in the `SemaphoreQueue::shutdown()` method where the semaphore release operations may not properly wake up all waiting threads, especially under high contention scenarios.
+Debugging hangs (general): see the troubleshooting section below and `scripts/debug_benchmarks.sh`.
 
 ---
 
@@ -906,22 +808,22 @@ timeout 30 ./build/bench_pc_semaphore --benchmark_filter="ProducerConsumer_SPSC_
    }
    ```
 
-#### **Step 5: Immediate Workaround Implementation**
+#### **Step 5: Fix that landed**
 
-**🔧 Temporary Fix Strategy**:
-```bash
-# Disable problematic benchmark in script
-echo -e "${YELLOW}Note: pc_semaphore temporarily disabled due to hanging issues${NC}"
-# run_benchmark "pc_semaphore" "bench_pc_semaphore" "" "2s"
+The durable fix is in `SemaphoreQueue`:
+
+1. Use a **fresh queue per Google Benchmark iteration**
+2. Call `close()` after producers finish so consumers can **drain**, then exit
+3. Call `shutdown()` only for terminal cleanup
+
+```cpp
+// Producer finishes pushes, then:
+queue.close();     // wake consumers; remaining items still pop successfully
+// After joins:
+queue.shutdown();
 ```
 
-**📝 Documentation Update**:
-```markdown
-### Semaphore Benchmark Hanging
-**Issue**: The `bench_pc_semaphore` benchmark has thread coordination issues.
-**Root Cause**: Race conditions in producer-consumer shutdown logic.
-**Workaround**: Temporarily disabled in full mode execution.
-```
+See `include/semaphore_queue.hpp` and `tests/test_smoke.cpp`.
 
 #### **Step 6: Verification of Fix**
 ```bash
@@ -1117,9 +1019,3 @@ expensive_computation();
 ## 📄 License
 
 MIT License - See LICENSE file for details
-
----
-=======
-# cpp-concurrency-bench
-C++ concurrency benchmarking suite with kitchen analogies and data-driven insights
->>>>>>> bd874bd5a13bd1f2c4491a2d0b1b48c50ffad703

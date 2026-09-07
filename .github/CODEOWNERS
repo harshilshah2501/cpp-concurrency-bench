@@ -1,0 +1,6 @@
+# Default code owners for public maintenance.
+# Update the handle if ownership changes.
+* @harshilshah2501
+/docs/ @harshilshah2501
+/matrix/ @harshilshah2501
+/.github/ @harshilshah2501

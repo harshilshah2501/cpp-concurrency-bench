@@ -24,6 +24,16 @@ BUILD_DIR="build"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 RESULTS_DIR="${OUTPUT_DIR}/${TIMESTAMP}"
 
+# Portable timeout binary (GNU coreutils on Linux; gtimeout via brew on macOS)
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_BIN="timeout"
+elif command -v gtimeout >/dev/null 2>&1; then
+    TIMEOUT_BIN="gtimeout"
+else
+    echo "Error: timeout/gtimeout not found. On macOS: brew install coreutils" >&2
+    exit 1
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -84,12 +94,13 @@ run_benchmark() {
     local filter_arg=""
     
     if [ -n "$filter" ]; then
-        filter_arg="--benchmark_filter=$filter"
+        filter_arg="--benchmark_filter=${filter}"
     fi
     
     # Run benchmark with timeout protection
     echo "  Timeout: ${timeout_duration}s | Min time: ${min_time}"
-    timeout "${timeout_duration}s" ./${BUILD_DIR}/${executable} \
+    # shellcheck disable=SC2086 # filter_arg intentionally empty or a single flag
+    "${TIMEOUT_BIN}" "${timeout_duration}s" ./${BUILD_DIR}/${executable} \
         --benchmark_format=json \
         --benchmark_out="${output_file}" \
         --benchmark_min_time="${min_time}" \
@@ -152,37 +163,18 @@ extract_summary() {
 # Function to build all benchmarks
 build_all() {
     echo -e "${YELLOW}Building all benchmarks...${NC}"
-    
-    cd "${BUILD_DIR}" || { echo -e "${RED}Build directory not found${NC}"; exit 1; }
-    
-    # Reconfigure to pick up any new targets
-    cmake .. > /dev/null 2>&1
-    
-    local benchmarks=(
-        "bench_counter_mutex"
-        "bench_counter_atomic" 
-        "bench_counter_spin"
-        "bench_pc_condvar"
-        "bench_pc_semaphore"
-        "bench_rw_shared_mutex"
-        "bench_barrier"
-        "bench_thread_pool"
-        "bench_coroutines"
-        "bench_async_future"
-    )
-    
-    for bench in "${benchmarks[@]}"; do
-        echo -n "Building ${bench}... "
-        if make "${bench}" > /dev/null 2>&1; then
-            echo -e "${GREEN}✓${NC}"
-        else
-            echo -e "${RED}✗${NC}"
-            echo -e "${RED}Failed to build ${bench}${NC}"
-        fi
-    done
-    
-    cd ..
-    echo -e "${GREEN}Build complete${NC}"
+
+    if [ ! -d "${BUILD_DIR}" ]; then
+        echo -e "${YELLOW}Configuring ${BUILD_DIR}...${NC}"
+        cmake -S . -B "${BUILD_DIR}" -DCMAKE_BUILD_TYPE=Release
+    fi
+
+    if cmake --build "${BUILD_DIR}" --parallel; then
+        echo -e "${GREEN}Build complete${NC}"
+    else
+        echo -e "${RED}Build failed${NC}"
+        exit 1
+    fi
     echo
 }
 
@@ -194,12 +186,12 @@ if [ "$MODE" = "simple" ]; then
     echo -e "${BLUE}=== Simple Mode: Core Synchronization Comparison ===${NC}"
     
     # Counter benchmarks for direct comparison
-    run_benchmark "counter_mutex" "bench_counter_mutex" "Counter_Mutex_Hot/1"
-    run_benchmark "counter_atomic" "bench_counter_atomic" "Counter_Atomic_Relaxed/1"
-    run_benchmark "counter_spin" "bench_counter_spin" "Counter_Spin_Hot/1"
+    run_benchmark "counter_mutex" "bench_counter_mutex" "Counter_Mutex_Hot/1/"
+    run_benchmark "counter_atomic" "bench_counter_atomic" "Counter_Atomic_Relaxed/1/"
+    run_benchmark "counter_spin" "bench_counter_spin" "Counter_Spin_Hot/1/"
     
     # Reader-writer comparison (skip producer-consumer as they're inherently multi-threaded)
-    run_benchmark "rw_shared_mutex" "bench_rw_shared_mutex" "SharedMutex_ReadHeavy_90_10/1"
+    run_benchmark "rw_shared_mutex" "bench_rw_shared_mutex" "SharedMutex_ReadHeavy_90_10/1/"
     
     # Generate simple comparison summary
     echo -e "${BLUE}=== Performance Summary ===${NC}"
@@ -244,8 +236,7 @@ else
     # 2. Producer-Consumer Benchmarks
     echo -e "${BLUE}=== Producer-Consumer Benchmarks ===${NC}"
     run_benchmark "pc_condvar" "bench_pc_condvar" "" "2s"
-    echo -e "${YELLOW}Note: pc_semaphore temporarily disabled due to hanging issues${NC}"
-    # run_benchmark "pc_semaphore" "bench_pc_semaphore" "" "2s"
+    run_benchmark "pc_semaphore" "bench_pc_semaphore" "" "2s"
 
     # 3. Reader-Writer Benchmarks
     echo -e "${BLUE}=== Reader-Writer Benchmarks ===${NC}"
@@ -265,110 +256,80 @@ else
     run_benchmark "coroutines" "bench_coroutines" "" "2s"
 fi
 
-# Generate summary report
+# Generate summary report from measured JSON (not canned claims)
 echo -e "${BLUE}=== Generating Analysis Report ===${NC}"
 
-cat > "${RESULTS_DIR}/analysis_report.md" << 'EOF'
-# C++ Concurrency Benchmarking Analysis Report
+python3 - "${RESULTS_DIR}" <<'PY'
+import json, sys, pathlib
+from datetime import datetime, timezone
 
-## Executive Summary
+results_dir = pathlib.Path(sys.argv[1])
+rows = []
+for path in sorted(results_dir.glob("*.json")):
+    try:
+        data = json.loads(path.read_text())
+    except Exception as exc:
+        rows.append((path.stem, f"parse error: {exc}", "", ""))
+        continue
+    if data.get("error"):
+        rows.append((path.stem, data["error"], "", ""))
+        continue
+    benches = data.get("benchmarks") or []
+    if not benches:
+        rows.append((path.stem, "no benchmarks", "", ""))
+        continue
+    b = benches[0]
+    name = b.get("name") or b.get("run_name") or path.stem
+    ips = b.get("items_per_second")
+    rt = b.get("real_time")
+    ips_s = f"{ips:.3g}" if isinstance(ips, (int, float)) else "n/a"
+    rt_s = f"{rt/1e6:.3f} ms" if isinstance(rt, (int, float)) else "n/a"
+    rows.append((name, ips_s, rt_s, path.name))
 
-This report provides performance analysis of various C++ concurrency primitives
-and patterns to guide technical interview discussions and architecture decisions.
+lines = [
+    "# C++ Concurrency Benchmarking Analysis Report",
+    "",
+    f"Generated: {datetime.now(timezone.utc).isoformat()}",
+    "",
+    "This report is derived from the JSON files produced in this run.",
+    "It does **not** invent cross-primitive speedup claims.",
+    "",
+    "## Measured results (first aggregate entry per file)",
+    "",
+    "| Benchmark | items/s | real_time | source |",
+    "|---|---:|---:|---|",
+]
+for name, ips, rt, src in rows:
+    lines.append(f"| `{name}` | {ips} | {rt} | `{src}` |")
 
-## Key Findings
-
-### 1. Counter Synchronization Performance
-
-**Atomic Operations vs Mutex vs Spinlock:**
-- **Best for high contention**: Mutex (predictable blocking)
-- **Best for low contention**: Atomic relaxed ordering
-- **Best for short critical sections**: Spinlock
-- **Memory ordering impact**: Relaxed > Acquire-Release > Sequential
-
-### 2. Producer-Consumer Patterns
-
-**Condition Variables vs Semaphores:**
-- **Best for complex conditions**: Condition variables + mutex
-- **Best for simple counting**: Counting semaphores
-- **Best for binary signaling**: Binary semaphores
-- **Best for fairness**: Condition variables with proper ordering
-
-### 3. Reader-Writer Scenarios
-
-**Shared Mutex Performance:**
-- **Break-even point**: ~70% reads for shared_mutex advantage
-- **Read-heavy workloads**: Shared mutex provides 2-3x improvement
-- **Write-heavy workloads**: Regular mutex often better
-- **Writer starvation**: Consider reader priority policies
-
-### 4. Thread Coordination
-
-**Barrier Synchronization:**
-- **std::barrier vs manual**: Similar performance, better ergonomics
-- **Completion functions**: Minimal overhead
-- **Scalability**: Linear degradation with thread count
-- **Use cases**: Bulk synchronous parallel patterns
-
-### 5. Task Parallelism
-
-**Thread Pool vs std::async:**
-- **CPU-bound tasks**: Thread pool 2-4x faster (no thread creation)
-- **I/O-bound tasks**: Similar performance, async simpler
-- **Mixed workloads**: Thread pool more predictable
-- **High task counts**: Thread pool essential for scalability
-
-### 6. Advanced Patterns
-
-**Coroutines vs Threads:**
-- **Memory efficiency**: Coroutines ~100x less memory per task
-- **I/O-bound scenarios**: Coroutines excel with many concurrent operations  
-- **CPU-bound scenarios**: Threads still competitive
-- **Composition**: Coroutines superior for complex async workflows
-
-## Interview Discussion Points
-
-### Architecture Questions
-1. **When to use atomics vs mutexes?**
-   - Atomics: Simple operations, lock-free algorithms, low contention
-   - Mutexes: Complex critical sections, high contention, guaranteed ordering
-
-2. **How to choose synchronization primitives?**
-   - Analyze contention patterns and critical section complexity
-   - Consider fairness requirements and starvation potential
-   - Measure actual workload characteristics
-
-3. **Thread pool sizing strategy?**
-   - CPU-bound: ~hardware_concurrency threads
-   - I/O-bound: Higher multiplier based on blocking characteristics
-   - Mixed: Dynamic sizing or separate pools
-
-### Performance Considerations
-1. **False sharing mitigation**: Cache-line alignment for hot variables
-2. **Memory ordering selection**: Relaxed for counters, acquire-release for synchronization
-3. **Lock granularity**: Balance between contention and overhead
-4. **Async patterns**: Futures for fire-and-forget, coroutines for composition
-
-## Detailed Metrics
-
-See individual JSON files for complete performance data including:
-- Throughput (operations/second)
-- Latency percentiles
-- Fairness coefficients
-- Memory usage patterns
-- Scalability characteristics
-
-## Environment Information
-
-- **Hardware**: Recorded in individual benchmark outputs
-- **Compiler**: C++20 with optimization flags
-- **Runtime**: Multiple repetitions with statistical aggregation
-- **Methodology**: Google Benchmark framework with controlled conditions
-
-EOF
+lines += [
+    "",
+    "## Interpretation guide",
+    "",
+    "- Compare only rows collected on the **same machine / build flags**.",
+    "- Counter benches use a fixed wall-time window with per-iteration workers.",
+    "- Prefer median/mean aggregates from the JSON when repetitions > 1.",
+    "- Re-run with `BENCH_NATIVE_ARCH=ON` only for local exploratory tuning;",
+    "  CI builds keep native arch off for reproducibility.",
+    "",
+]
+(results_dir / "analysis_report.md").write_text("\n".join(lines) + "\n")
+print(f"Wrote {results_dir / 'analysis_report.md'}")
+PY
 
 echo -e "${GREEN}Analysis complete!${NC}"
 echo "Results saved to: ${RESULTS_DIR}"
+
+if command -v python3 >/dev/null 2>&1; then
+    MATRIX_OUT="${RESULTS_DIR}/decision_matrix.json"
+    if python3 scripts/build_decision_matrix.py "${RESULTS_DIR}" --out "${MATRIX_OUT}"; then
+        echo -e "${GREEN}Decision matrix: ${MATRIX_OUT}${NC}"
+        mkdir -p matrix/generated
+        cp "${MATRIX_OUT}" matrix/generated/decision_matrix.json 2>/dev/null || true
+    else
+        echo -e "${YELLOW}Decision matrix generation skipped/failed${NC}"
+    fi
+fi
 echo
 echo -e "${BLUE}Quick summary of files:${NC}"
 find "${RESULTS_DIR}" -name "*.json" -exec basename {} \; | sort
@@ -396,9 +357,5 @@ echo "3. Test individual benchmarks with shorter timeouts:"
 echo "   timeout 30 ./build/bench_name --benchmark_min_time=0.1s"
 echo
 echo "4. For hanging issues, see README.md debugging section"
-echo
-echo "5. Known issues:"
-echo "   - pc_semaphore: Currently disabled due to coordination races"
-echo "   - High CPU systems: May need longer timeouts for complex benchmarks"
 echo
 monitor_hanging_processes

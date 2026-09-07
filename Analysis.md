@@ -1,16 +1,18 @@
-🎯 Critical Interview Points
-1. Why Atomic Relaxed is 3x Faster (Single Thread)
-```bash
-// Relaxed: No memory barriers, just atomic read-modify-write
-counter.fetch_add(1, std::memory_order_relaxed);
+# Analysis notes
 
-// SeqCst: Full memory barrier, global ordering guarantee
-counter.fetch_add(1);  // defaults to seq_cst
-```
+Personal scratch notes for interview talking points. **Not** a results publication.
 
-2. Why Performance Collapses with Multiple Threads
-Cache line bouncing: Counter lives on single cache line
-Memory bus saturation: All cores competing for same memory location
-False sharing prevention: Our padding helps, but can't eliminate core contention
-3. Fairness Observation
-Notice fairness_cv=0 - this indicates perfect fairness in these short tests, but real applications might show different patterns.
+For citable numbers, follow [docs/METHODOLOGY.md](docs/METHODOLOGY.md) and generate a
+decision matrix with `scripts/build_decision_matrix.py`.
+
+## Talking points (qualitative)
+
+1. **Why relaxed atomics can beat seq_cst (single thread / low contention)**  
+   Fewer barriers / weaker ordering; still an atomic RMW.
+
+2. **Why contended counters collapse**  
+   Cache-line bouncing and memory interconnect traffic dominate lock choice.
+
+3. **Fairness**  
+   `fairness_cv ≈ 0` on short windows can look “perfect”; longer runs and
+   preemption expose spinlock / RW-lock unfairness — measure before claiming.
