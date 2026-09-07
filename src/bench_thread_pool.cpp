@@ -58,40 +58,42 @@ int mixed_task(int cpu_work, std::chrono::microseconds io_wait) {
 }
 
 // Thread Pool: CPU-bound tasks
+// Pool is reused across iterations (realistic usage). Creating/joining a fresh
+// pool every iteration races the OS thread lifecycle and can hang under load.
 static void ThreadPool_CPUBound(benchmark::State& state) {
     const int num_tasks = state.range(0);
     const int cpu_work_size = 10000;
-    
+    thread_pool pool;  // Uses hardware_concurrency threads by default
+
     for (auto _ : state) {
-        thread_pool pool;  // Uses hardware_concurrency threads by default
         std::vector<std::future<int>> futures;
         futures.reserve(num_tasks);
-        
+
         auto start = std::chrono::high_resolution_clock::now();
-        
+
         // Submit all tasks
         for (int i = 0; i < num_tasks; ++i) {
             futures.emplace_back(
-                pool.submit([i, cpu_work_size] { 
-                    return cpu_intensive_task(cpu_work_size + i); 
+                pool.submit([i, cpu_work_size] {
+                    return cpu_intensive_task(cpu_work_size + i);
                 })
             );
         }
-        
+
         // Wait for all results
         int total_result = 0;
         for (auto& future : futures) {
             total_result += future.get();
         }
-        
+
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-        
+
         benchmark::DoNotOptimize(total_result);
         state.counters["completion_time_us"] = duration.count();
         state.counters["throughput"] = (1000000.0 * num_tasks) / duration.count();
     }
-    
+
     state.SetItemsProcessed(num_tasks);
 }
 
@@ -136,35 +138,35 @@ static void StdAsync_CPUBound(benchmark::State& state) {
 static void ThreadPool_IOBound(benchmark::State& state) {
     const int num_tasks = state.range(0);
     const auto io_duration = std::chrono::microseconds(1000);  // 1ms per task
-    
+    thread_pool pool;
+
     for (auto _ : state) {
-        thread_pool pool;
         std::vector<std::future<void>> futures;
         futures.reserve(num_tasks);
-        
+
         auto start = std::chrono::high_resolution_clock::now();
-        
+
         // Submit all tasks
         for (int i = 0; i < num_tasks; ++i) {
             futures.emplace_back(
-                pool.submit([io_duration] { 
-                    io_simulation_task(io_duration); 
+                pool.submit([io_duration] {
+                    io_simulation_task(io_duration);
                 })
             );
         }
-        
+
         // Wait for all completions
         for (auto& future : futures) {
             future.get();
         }
-        
+
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-        
+
         state.counters["completion_time_us"] = duration.count();
         state.counters["efficiency"] = (num_tasks * io_duration.count()) / static_cast<double>(duration.count());
     }
-    
+
     state.SetItemsProcessed(num_tasks);
 }
 
@@ -208,36 +210,36 @@ static void ThreadPool_Mixed(benchmark::State& state) {
     const int num_tasks = state.range(0);
     const int cpu_work_size = 5000;
     const auto io_duration = std::chrono::microseconds(500);
-    
+    thread_pool pool;
+
     for (auto _ : state) {
-        thread_pool pool;
         std::vector<std::future<int>> futures;
         futures.reserve(num_tasks);
-        
+
         auto start = std::chrono::high_resolution_clock::now();
-        
+
         // Submit mixed tasks
         for (int i = 0; i < num_tasks; ++i) {
             futures.emplace_back(
-                pool.submit([i, cpu_work_size, io_duration] { 
-                    return mixed_task(cpu_work_size + i, io_duration); 
+                pool.submit([i, cpu_work_size, io_duration] {
+                    return mixed_task(cpu_work_size + i, io_duration);
                 })
             );
         }
-        
+
         // Wait for all results
         int total_result = 0;
         for (auto& future : futures) {
             total_result += future.get();
         }
-        
+
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-        
+
         benchmark::DoNotOptimize(total_result);
         state.counters["completion_time_us"] = duration.count();
     }
-    
+
     state.SetItemsProcessed(num_tasks);
 }
 
@@ -246,38 +248,38 @@ static void ThreadPool_Scalability(benchmark::State& state) {
     const int total_work = 1000000;  // Fixed total work
     const int num_tasks = state.range(0);
     const int work_per_task = total_work / num_tasks;
-    
+    thread_pool pool;
+
     for (auto _ : state) {
-        thread_pool pool;
         std::vector<std::future<int>> futures;
         futures.reserve(num_tasks);
-        
+
         auto start = std::chrono::high_resolution_clock::now();
-        
+
         // Submit tasks with varying granularity
         for (int i = 0; i < num_tasks; ++i) {
             futures.emplace_back(
-                pool.submit([work_per_task] { 
-                    return cpu_intensive_task(work_per_task); 
+                pool.submit([work_per_task] {
+                    return cpu_intensive_task(work_per_task);
                 })
             );
         }
-        
+
         // Wait for all results
         int total_result = 0;
         for (auto& future : futures) {
             total_result += future.get();
         }
-        
+
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-        
+
         benchmark::DoNotOptimize(total_result);
         state.counters["completion_time_us"] = duration.count();
         state.counters["work_per_task"] = work_per_task;
         state.counters["task_overhead_ns"] = duration.count() * 1000.0 / num_tasks;
     }
-    
+
     state.SetItemsProcessed(total_work);
 }
 
@@ -286,43 +288,42 @@ static void ThreadPool_BurstWorkload(benchmark::State& state) {
     const int num_bursts = 5;
     const int tasks_per_burst = state.range(0);
     const int cpu_work_size = 8000;
-    
+    thread_pool pool;
+
     for (auto _ : state) {
-        thread_pool pool;
-        
         auto start = std::chrono::high_resolution_clock::now();
-        
+
         for (int burst = 0; burst < num_bursts; ++burst) {
             std::vector<std::future<int>> futures;
             futures.reserve(tasks_per_burst);
-            
+
             // Submit burst of tasks
             for (int i = 0; i < tasks_per_burst; ++i) {
                 futures.emplace_back(
-                    pool.submit([cpu_work_size] { 
-                        return cpu_intensive_task(cpu_work_size); 
+                    pool.submit([cpu_work_size] {
+                        return cpu_intensive_task(cpu_work_size);
                     })
                 );
             }
-            
+
             // Wait for burst completion
             int burst_result = 0;
             for (auto& future : futures) {
                 burst_result += future.get();
             }
             benchmark::DoNotOptimize(burst_result);
-            
+
             // Small gap between bursts
             std::this_thread::sleep_for(std::chrono::microseconds(100));
         }
-        
+
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-        
+
         state.counters["completion_time_us"] = duration.count();
         state.counters["bursts"] = num_bursts;
     }
-    
+
     state.SetItemsProcessed(num_bursts * tasks_per_burst);
 }
 

@@ -66,7 +66,7 @@ Compare `Counter_Spin_Hot` vs `Counter_Spin_WithWork` as threads increase. Where
 **Predict:** Thread pool wins for many tiny CPU tasks; `std::async` pays thread-create costs.
 
 ```bash
-./build/bench_thread_pool --benchmark_filter='ThreadPool_CPUBound|StdAsync_CPUBound' --benchmark_min_time=0.5s
+./build/bench_thread_pool --benchmark_filter='ThreadPool_CPUBound/.*/real_time$|StdAsync_CPUBound/.*/real_time$' --benchmark_min_time=0.05s
 ```
 
 ## E7 — Build your matrix (capstone)

@@ -2,9 +2,11 @@
 #include "padded.hpp"
 #include "semaphore_queue.hpp"
 #include "spinlock.hpp"
+#include "thread_pool.hpp"
 
 #include <atomic>
 #include <cstdlib>
+#include <future>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -98,12 +100,41 @@ void test_padded_and_affinity() {
     expect(true, "is_affinity_supported links");
 }
 
+void test_thread_pool_reuse() {
+    // Recreate pools repeatedly — previously hung when benches constructed a
+    // fresh pool every Google Benchmark iteration.
+    constexpr int sessions = 200;
+    constexpr int tasks_per = 64;
+    int expected = 0;
+    for (int i = 0; i < tasks_per; ++i) {
+        expected += i * i;
+    }
+    for (int s = 0; s < sessions; ++s) {
+        thread_pool pool(2);
+        std::vector<std::future<int>> futures;
+        futures.reserve(tasks_per);
+        for (int i = 0; i < tasks_per; ++i) {
+            futures.emplace_back(pool.submit([i] { return i * i; }));
+        }
+        int sum = 0;
+        for (auto& f : futures) {
+            sum += f.get();
+        }
+        if (sum != expected) {
+            expect(false, "thread_pool session sums squares");
+            return;
+        }
+    }
+    expect(true, "thread_pool survives 200 create/submit/join sessions");
+}
+
 }  // namespace
 
 int main() {
     test_spinlock();
     test_semaphore_queue();
     test_padded_and_affinity();
+    test_thread_pool_reuse();
     if (failures != 0) {
         std::cerr << failures << " failure(s)\n";
         return EXIT_FAILURE;

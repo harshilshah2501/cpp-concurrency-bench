@@ -51,9 +51,9 @@ cmake --build build --parallel
 ### Day 3 — tasking
 
 ```bash
-./build/bench_thread_pool   --benchmark_filter='ThreadPool_CPUBound|StdAsync_CPUBound' --benchmark_min_time=0.2s
+./build/bench_thread_pool   --benchmark_filter='ThreadPool_CPUBound/.*/real_time$|StdAsync_CPUBound/.*/real_time$' --benchmark_min_time=0.05s
 ./build/bench_async_future  --benchmark_filter='StdAsync_Launch' --benchmark_min_time=0.2s
-./build/bench_coroutines    --benchmark_filter='Coroutines_|Threads_CPUBound' --benchmark_min_time=0.2s
+./build/bench_coroutines    --benchmark_filter='Coroutines_CPUBound|Threads_CPUBound|Coroutines_IOBound' --benchmark_min_time=0.2s
 ```
 
 **Ask yourself:** When does thread-pool reuse beat `std::async`? What are you actually measuring with coroutine IO delays?
