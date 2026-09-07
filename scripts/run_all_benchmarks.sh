@@ -94,11 +94,12 @@ run_benchmark() {
     local filter_arg=""
     
     if [ -n "$filter" ]; then
-        filter_arg="--benchmark_filter=$filter"
+        filter_arg="--benchmark_filter=${filter}"
     fi
     
     # Run benchmark with timeout protection
     echo "  Timeout: ${timeout_duration}s | Min time: ${min_time}"
+    # shellcheck disable=SC2086 # filter_arg intentionally empty or a single flag
     "${TIMEOUT_BIN}" "${timeout_duration}s" ./${BUILD_DIR}/${executable} \
         --benchmark_format=json \
         --benchmark_out="${output_file}" \
@@ -185,12 +186,12 @@ if [ "$MODE" = "simple" ]; then
     echo -e "${BLUE}=== Simple Mode: Core Synchronization Comparison ===${NC}"
     
     # Counter benchmarks for direct comparison
-    run_benchmark "counter_mutex" "bench_counter_mutex" "Counter_Mutex_Hot/1"
-    run_benchmark "counter_atomic" "bench_counter_atomic" "Counter_Atomic_Relaxed/1"
-    run_benchmark "counter_spin" "bench_counter_spin" "Counter_Spin_Hot/1"
+    run_benchmark "counter_mutex" "bench_counter_mutex" "Counter_Mutex_Hot/1/"
+    run_benchmark "counter_atomic" "bench_counter_atomic" "Counter_Atomic_Relaxed/1/"
+    run_benchmark "counter_spin" "bench_counter_spin" "Counter_Spin_Hot/1/"
     
     # Reader-writer comparison (skip producer-consumer as they're inherently multi-threaded)
-    run_benchmark "rw_shared_mutex" "bench_rw_shared_mutex" "SharedMutex_ReadHeavy_90_10/1"
+    run_benchmark "rw_shared_mutex" "bench_rw_shared_mutex" "SharedMutex_ReadHeavy_90_10/1/"
     
     # Generate simple comparison summary
     echo -e "${BLUE}=== Performance Summary ===${NC}"
