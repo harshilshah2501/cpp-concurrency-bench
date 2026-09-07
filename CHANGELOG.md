@@ -7,26 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Semaphore queue lifecycle hang across Google Benchmark iterations
+- Coroutine awaiter use-after-free and unreliable completion tracking
+- Counter benchmark methodology (per-iteration workers, PauseTiming, non-cumulative ops)
+- Barrier arrival timing data race
+- Unresolved merge conflict markers in `.gitignore` and `README.md`
+- CI failures from deprecated `upload-artifact@v3` and obsolete runner matrix
+- Missing `padded.hpp` includes and unimplemented `affinity::is_affinity_supported`
+- Misleading thread-pool "work-stealing" documentation
+- Scripts assuming Make generator / wrong binary paths
+- Static canned analysis report replaced with JSON-derived summary
+
 ### Added
+- `AUDIT.md` comprehensive project audit
+- Shared `bench_harness.hpp` and `semaphore_queue.hpp`
+- Smoke unit tests (`tests/test_smoke.cpp`) via CTest
+- `BENCH_NATIVE_ARCH` CMake option (default OFF for reproducible builds)
+- Google Benchmark pinned to commit SHA for tag v1.8.3
+
+### Changed
+- CI matrix to ubuntu-22.04/24.04 + macos-14; fail on benchmark timeouts
+- Build uses `target_include_directories` / `target_compile_options`
+
+### Added (historical notes carried forward)
 - Comprehensive kitchen analogy system for all concurrency primitives
 - Benchmark results validation proving theoretical hypotheses
 - Complete debugging infrastructure for hanging benchmarks
 - Timeout protection and process monitoring
 - Educational documentation with real performance data
-
-### Changed
-- Enhanced README with data-driven hypothesis validation
-- Improved error handling in benchmark execution scripts
-- Better organization of benchmark results with archiving
-
-### Fixed
-- Temporary workaround for semaphore benchmark hanging issue
-- Process cleanup and timeout mechanisms
-- Documentation typos and formatting improvements
-
-### Security
-- Added proper .gitignore for sensitive build artifacts
-- Implemented safe process termination procedures
 
 ## [1.0.0] - 2024-09-24
 

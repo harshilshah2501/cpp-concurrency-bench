@@ -72,7 +72,16 @@ int get_num_logical_cores() {
     // For benchmarking:
     // - Use physical core count for CPU-bound workloads
     // - Use logical core count for I/O or mixed workloads
-    return std::thread::hardware_concurrency();
+    unsigned int cores = std::thread::hardware_concurrency();
+    return cores == 0 ? 1 : static_cast<int>(cores);
+}
+
+bool is_affinity_supported() {
+#if defined(__linux__) || defined(__APPLE__)
+    return true;
+#else
+    return false;
+#endif
 }
 
 } // namespace affinity

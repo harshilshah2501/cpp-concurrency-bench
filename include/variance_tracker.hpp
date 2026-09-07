@@ -2,6 +2,7 @@
 #include <vector>
 #include <atomic>
 #include <cmath>
+#include <cstdint>
 
 // =============================================================================
 // Thread Fairness and Variance Measurement

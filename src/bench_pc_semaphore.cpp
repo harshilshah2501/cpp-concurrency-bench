@@ -1,291 +1,220 @@
 #include <benchmark/benchmark.h>
-#include <semaphore>
+#include <atomic>
+#include <cstdint>
 #include <mutex>
-#include <queue>
+#include <semaphore>
 #include <thread>
 #include <vector>
-#include <atomic>
+
+#include "semaphore_queue.hpp"
 #include "variance_tracker.hpp"
 
 // =============================================================================
 // Producer-Consumer with Semaphore Benchmark
 // =============================================================================
-// This benchmark compares semaphore-based coordination vs condition variables.
-// Semaphores provide a more direct signaling mechanism compared to condition
-// variables, which can result in better performance for certain patterns.
-//
-// Key insights for interviews:
-// - Semaphores: Direct counting mechanism, no spurious wakeups
-// - Condition Variables: More flexible but higher overhead
-// - Binary vs Counting semaphores performance differences
-// - Memory ordering implications with semaphore operations
-// - RAII patterns with semaphore acquisition
-//
-// C++20 std::counting_semaphore provides:
-// - Atomic counter with acquire/release semantics
-// - FIFO ordering guarantees (implementation dependent)
-// - Exception safety with RAII
-// - Timeout support (try_acquire_for, try_acquire_until)
+// Uses a fresh SemaphoreQueue per Google Benchmark iteration so shutdown()
+// cannot poison subsequent runs.
 // =============================================================================
 
-template<typename T>
-class SemaphoreQueue {
-private:
-    mutable std::mutex mtx_;
-    std::queue<T> queue_;
-    std::counting_semaphore<> empty_slots_;  // Available space in queue
-    std::counting_semaphore<> filled_slots_; // Items available to consume
-    size_t max_size_;
-    std::atomic<bool> shutdown_;
-
-public:
-    explicit SemaphoreQueue(size_t max_size = 1000) 
-        : empty_slots_(max_size)    // Initially all slots are empty
-        , filled_slots_(0)          // Initially no items to consume
-        , max_size_(max_size)
-        , shutdown_(false) {}
-    
-    bool push(const T& item) {
-        if (shutdown_.load(std::memory_order_acquire)) return false;
-        
-        // Wait for available space
-        empty_slots_.acquire();
-        
-        if (shutdown_.load(std::memory_order_acquire)) {
-            empty_slots_.release(); // Return the slot we acquired
-            return false;
-        }
-        
-        {
-            std::lock_guard<std::mutex> lock(mtx_);
-            queue_.push(item);
-        }
-        
-        // Signal that an item is available
-        filled_slots_.release();
-        return true;
-    }
-    
-    bool pop(T& item) {
-        if (shutdown_.load(std::memory_order_acquire)) return false;
-        
-        // Wait for available item
-        filled_slots_.acquire();
-        
-        if (shutdown_.load(std::memory_order_acquire)) {
-            filled_slots_.release(); // Return the item we acquired
-            return false;
-        }
-        
-        {
-            std::lock_guard<std::mutex> lock(mtx_);
-            if (queue_.empty()) return false; // Should not happen with proper semaphore usage
-            item = queue_.front();
-            queue_.pop();
-        }
-        
-        // Signal that a slot is available
-        empty_slots_.release();
-        return true;
-    }
-    
-    void shutdown() {
-        shutdown_.store(true, std::memory_order_release);
-        
-        // Release all waiting threads by making semaphores available
-        for (size_t i = 0; i < max_size_; ++i) {
-            empty_slots_.release();
-            filled_slots_.release();
-        }
-    }
-    
-    size_t size() const {
-        std::lock_guard<std::mutex> lock(mtx_);
-        return queue_.size();
-    }
-};
-
-// Single Producer, Single Consumer with Semaphores
 static void ProducerConsumer_SPSC_Semaphore(benchmark::State& state) {
-    const size_t queue_capacity = state.range(0);
+    const size_t queue_capacity = static_cast<size_t>(state.range(0));
     const size_t items_per_iteration = 10000;
-    
-    SemaphoreQueue<int> queue(queue_capacity);
-    std::atomic<size_t> items_produced{0};
-    std::atomic<size_t> items_consumed{0};
-    
+
     for (auto _ : state) {
-        items_produced = 0;
-        items_consumed = 0;
-        
-        // Producer thread
+        SemaphoreQueue<int> queue(queue_capacity);
+        std::atomic<size_t> items_consumed{0};
+
         std::thread producer([&] {
             for (size_t i = 0; i < items_per_iteration; ++i) {
-                queue.push(static_cast<int>(i));
-                items_produced.fetch_add(1, std::memory_order_relaxed);
-            }
-        });
-        
-        // Consumer thread
-        std::thread consumer([&] {
-            int item;
-            while (items_consumed.load(std::memory_order_relaxed) < items_per_iteration) {
-                if (queue.pop(item)) {
-                    items_consumed.fetch_add(1, std::memory_order_relaxed);
+                if (!queue.push(static_cast<int>(i))) {
+                    break;
                 }
             }
         });
-        
+
+        std::thread consumer([&] {
+            int item = 0;
+            while (items_consumed.load(std::memory_order_relaxed) <
+                   items_per_iteration) {
+                if (queue.pop(item)) {
+                    items_consumed.fetch_add(1, std::memory_order_relaxed);
+                } else {
+                    break;
+                }
+            }
+        });
+
         producer.join();
+        if (items_consumed.load(std::memory_order_relaxed) <
+            items_per_iteration) {
+            queue.shutdown();
+        }
         consumer.join();
-        queue.shutdown();
+        if (!queue.is_shutdown()) {
+            queue.shutdown();
+        }
+        benchmark::DoNotOptimize(items_consumed.load());
     }
-    
-    state.counters["queue_capacity"] = queue_capacity;
-    state.counters["items_processed"] = items_per_iteration;
-    state.SetItemsProcessed(items_per_iteration);
+
+    state.counters["queue_capacity"] = static_cast<double>(queue_capacity);
+    state.counters["items_processed"] =
+        static_cast<double>(items_per_iteration);
+    state.SetItemsProcessed(
+        static_cast<int64_t>(state.iterations() * items_per_iteration));
 }
 
-// Multiple Producers, Multiple Consumers with Semaphores
 static void ProducerConsumer_MPMC_Semaphore(benchmark::State& state) {
-    const size_t num_threads = state.range(0);
+    const size_t num_threads = static_cast<size_t>(state.range(0));
     const size_t num_producers = num_threads / 2;
     const size_t num_consumers = num_threads - num_producers;
     const size_t items_per_producer = 1000;
     const size_t total_items = num_producers * items_per_producer;
-    
+
     if (num_producers == 0 || num_consumers == 0) {
         state.SkipWithError("Need at least 1 producer and 1 consumer");
         return;
     }
-    
-    SemaphoreQueue<int> queue(50);  // Moderate queue size for contention
-    variance_tracker producer_tracker(num_producers);
-    variance_tracker consumer_tracker(num_consumers);
-    std::atomic<size_t> items_consumed{0};
-    
+
+    double last_producer_fairness = 0.0;
+    double last_consumer_fairness = 0.0;
+
     for (auto _ : state) {
-        producer_tracker.reset();
-        consumer_tracker.reset();
-        items_consumed = 0;
-        
-        // Producer threads
+        SemaphoreQueue<int> queue(50);
+        variance_tracker producer_tracker(num_producers);
+        variance_tracker consumer_tracker(num_consumers);
+        std::atomic<size_t> items_consumed{0};
+
         std::vector<std::thread> producers;
+        producers.reserve(num_producers);
         for (size_t i = 0; i < num_producers; ++i) {
             producers.emplace_back([&, producer_id = i] {
                 for (size_t j = 0; j < items_per_producer; ++j) {
-                    int item = static_cast<int>(producer_id * items_per_producer + j);
-                    queue.push(item);
+                    int item =
+                        static_cast<int>(producer_id * items_per_producer + j);
+                    if (!queue.push(item)) {
+                        break;
+                    }
                     producer_tracker.record_operation(producer_id);
                 }
             });
         }
-        
-        // Consumer threads
+
         std::vector<std::thread> consumers;
+        consumers.reserve(num_consumers);
         for (size_t i = 0; i < num_consumers; ++i) {
             consumers.emplace_back([&, consumer_id = i] {
-                int item;
-                while (items_consumed.load(std::memory_order_relaxed) < total_items) {
+                int item = 0;
+                while (items_consumed.load(std::memory_order_relaxed) <
+                       total_items) {
                     if (queue.pop(item)) {
                         items_consumed.fetch_add(1, std::memory_order_relaxed);
                         consumer_tracker.record_operation(consumer_id);
+                    } else {
+                        break;
                     }
                 }
             });
         }
-        
+
         for (auto& producer : producers) {
             producer.join();
+        }
+        if (items_consumed.load(std::memory_order_relaxed) < total_items) {
+            queue.shutdown();
         }
         for (auto& consumer : consumers) {
             consumer.join();
         }
-        queue.shutdown();
+        if (!queue.is_shutdown()) {
+            queue.shutdown();
+        }
+
+        last_producer_fairness = producer_tracker.coefficient_of_variation();
+        last_consumer_fairness = consumer_tracker.coefficient_of_variation();
     }
-    
-    state.counters["num_producers"] = num_producers;
-    state.counters["num_consumers"] = num_consumers;
-    state.counters["producer_fairness"] = producer_tracker.coefficient_of_variation();
-    state.counters["consumer_fairness"] = consumer_tracker.coefficient_of_variation();
-    state.counters["total_items"] = total_items;
-    state.SetItemsProcessed(total_items);
+
+    state.counters["num_producers"] = static_cast<double>(num_producers);
+    state.counters["num_consumers"] = static_cast<double>(num_consumers);
+    state.counters["producer_fairness"] = last_producer_fairness;
+    state.counters["consumer_fairness"] = last_consumer_fairness;
+    state.counters["total_items"] = static_cast<double>(total_items);
+    state.SetItemsProcessed(
+        static_cast<int64_t>(state.iterations() * total_items));
 }
 
-// Binary Semaphore vs Mutex comparison
 static void BinarySemaphore_vs_Mutex(benchmark::State& state) {
-    const int num_threads = state.range(0);
+    const int num_threads = static_cast<int>(state.range(0));
     const size_t operations_per_thread = 10000;
-    
-    // Binary semaphore (max count = 1)
-    std::binary_semaphore binary_sem{1};
-    std::atomic<uint64_t> binary_counter{0};
-    
-    // Mutex for comparison
-    std::mutex mtx;
-    std::atomic<uint64_t> mutex_counter{0};
-    
-    variance_tracker binary_tracker(num_threads);
-    variance_tracker mutex_tracker(num_threads);
-    
+
+    uint64_t last_binary = 0;
+    uint64_t last_mutex = 0;
+    double last_binary_fairness = 0.0;
+    double last_mutex_fairness = 0.0;
+
     for (auto _ : state) {
-        binary_tracker.reset();
-        mutex_tracker.reset();
-        binary_counter = 0;
-        mutex_counter = 0;
-        
+        std::binary_semaphore binary_sem{1};
+        std::atomic<uint64_t> binary_counter{0};
+        std::mutex mtx;
+        std::atomic<uint64_t> mutex_counter{0};
+        variance_tracker binary_tracker(static_cast<size_t>(num_threads));
+        variance_tracker mutex_tracker(static_cast<size_t>(num_threads));
+
         std::vector<std::thread> threads;
-        
-        // Test binary semaphore
+        threads.reserve(static_cast<size_t>(num_threads));
+
         for (int i = 0; i < num_threads; ++i) {
             threads.emplace_back([&, thread_id = i] {
                 for (size_t j = 0; j < operations_per_thread; ++j) {
                     binary_sem.acquire();
                     binary_counter.fetch_add(1, std::memory_order_relaxed);
                     binary_sem.release();
-                    binary_tracker.record_operation(thread_id);
+                    binary_tracker.record_operation(
+                        static_cast<size_t>(thread_id));
                 }
             });
         }
-        
         for (auto& t : threads) {
             t.join();
         }
         threads.clear();
-        
-        // Test mutex
+
         for (int i = 0; i < num_threads; ++i) {
             threads.emplace_back([&, thread_id = i] {
                 for (size_t j = 0; j < operations_per_thread; ++j) {
                     std::lock_guard<std::mutex> lock(mtx);
                     mutex_counter.fetch_add(1, std::memory_order_relaxed);
-                    mutex_tracker.record_operation(thread_id);
+                    mutex_tracker.record_operation(
+                        static_cast<size_t>(thread_id));
                 }
             });
         }
-        
         for (auto& t : threads) {
             t.join();
         }
+
+        last_binary = binary_counter.load();
+        last_mutex = mutex_counter.load();
+        last_binary_fairness = binary_tracker.coefficient_of_variation();
+        last_mutex_fairness = mutex_tracker.coefficient_of_variation();
     }
-    
-    state.counters["binary_sem_ops"] = binary_counter.load();
-    state.counters["mutex_ops"] = mutex_counter.load();
-    state.counters["binary_fairness"] = binary_tracker.coefficient_of_variation();
-    state.counters["mutex_fairness"] = mutex_tracker.coefficient_of_variation();
-    state.SetItemsProcessed(num_threads * operations_per_thread * 2); // Both semaphore and mutex
+
+    state.counters["binary_sem_ops"] = static_cast<double>(last_binary);
+    state.counters["mutex_ops"] = static_cast<double>(last_mutex);
+    state.counters["binary_fairness"] = last_binary_fairness;
+    state.counters["mutex_fairness"] = last_mutex_fairness;
+    state.SetItemsProcessed(static_cast<int64_t>(
+        state.iterations() * num_threads * operations_per_thread * 2));
 }
 
-// Benchmark configurations
 BENCHMARK(ProducerConsumer_SPSC_Semaphore)
     ->RangeMultiplier(10)
-    ->Range(10, 1000)  // Queue capacity
+    ->Range(10, 1000)
     ->UseRealTime()
     ->Unit(benchmark::kMillisecond);
 
 BENCHMARK(ProducerConsumer_MPMC_Semaphore)
     ->RangeMultiplier(2)
-    ->Range(2, 8)  // Total threads (split between producers/consumers)
+    ->Range(2, 8)
     ->UseRealTime()
     ->Unit(benchmark::kMillisecond);
 

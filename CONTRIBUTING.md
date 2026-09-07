@@ -12,18 +12,18 @@ Thank you for your interest in contributing! This project aims to provide compre
 
 1. **Fork and Clone**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/cpp-concurrency-bench.git
+   git clone https://github.com/harshilshah2501/cpp-concurrency-bench.git
    cd cpp-concurrency-bench
    ```
 
 2. **Build and Test**
    ```bash
-   mkdir build && cd build
-   cmake -DCMAKE_BUILD_TYPE=Release ..
-   make -j$(nproc)
+   cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+   cmake --build build -j
+   ctest --test-dir build --output-on-failure
    
    # Test your changes
-   ../scripts/run_all_benchmarks.sh simple
+   ./scripts/run_all_benchmarks.sh simple
    ```
 
 ## 🔧 Development Guidelines
@@ -45,16 +45,10 @@ Thank you for your interest in contributing! This project aims to provide compre
        // Cleanup and metrics
        state.SetItemsProcessed(state.iterations());
    }
-   BENCHMARK(BenchmarkYourFeature)->ThreadRange(1, std::thread::hardware_concurrency());
+   BENCHMARK(BenchmarkYourFeature)->RangeMultiplier(2)->Range(1, std::thread::hardware_concurrency());
    ```
 
-3. **Add to CMakeLists.txt**:
-   ```cmake
-   add_executable(bench_your_feature src/bench_your_feature.cpp)
-   target_link_libraries(bench_your_feature bench_common benchmark::benchmark)
-   ```
-
-4. **Update run_all_benchmarks.sh** to include your benchmark
+3. **Add to CMakeLists.txt** via `add_bench(bench_your_feature src/bench_your_feature.cpp)`
 
 ### Kitchen Analogy Guidelines
 

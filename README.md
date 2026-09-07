@@ -13,24 +13,22 @@ This project benchmarks various C++ synchronization mechanisms to help developer
 
 ```bash
 # Clone and setup
-git clone https://github.com/YOUR_USERNAME/cpp-concurrency-bench.git
+git clone https://github.com/harshilshah2501/cpp-concurrency-bench.git
 cd cpp-concurrency-bench
-mkdir build && cd build
-
-# Configure and build (requires C++20)
-cmake ..
-make -j$(nproc)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+# Optional local-only: -DBENCH_NATIVE_ARCH=ON
+cmake --build build --parallel
 
 # Run comprehensive benchmark suite
-../scripts/run_all_benchmarks.sh full
+./scripts/run_all_benchmarks.sh full
 
 # Or run quick comparison of core primitives
-../scripts/run_all_benchmarks.sh simple
+./scripts/run_all_benchmarks.sh simple
 
 # Or run individual benchmarks
-./bench_counter_mutex
-./bench_rw_shared_mutex
-./bench_coroutines
+./build/bench_counter_mutex
+./build/bench_rw_shared_mutex
+./build/bench_coroutines
 ```
 
 ## Understanding Concurrency: Analogies and Real-World Problems

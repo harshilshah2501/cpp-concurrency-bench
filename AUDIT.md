@@ -318,4 +318,23 @@ Not a high-risk networked product, but **correctness bugs are “security-adjace
 
 ---
 
-*This audit is informational. Critical merge-conflict cleanup may land in the same PR as this document; deeper correctness fixes should follow the remediation order above.*
+## Remediation status (2026-09-07)
+
+| # | Action | Status |
+|---|--------|--------|
+| 1 | Resolve merge conflicts | Done |
+| 2 | Fix semaphore lifecycle + re-enable | Done |
+| 3 | Fix coroutine UAF + completion tracking | Done |
+| 4 | Repair CI | Done |
+| 5 | Refactor counter harness | Done |
+| 6 | Header hygiene | Done |
+| 7 | Wire affinity into benches | Done (`bench_harness`) |
+| 8 | JSON-derived analysis report | Done |
+| 9 | Smoke unit tests | Done (`ctest`) |
+| 10 | Pin dependency + `-march` policy | Done (`BENCH_NATIVE_ARCH`) |
+
+See branch `cursor/audit-remediation-a9bc` / follow-up PR for the implementation.
+
+---
+
+*Historical audit snapshot below reflects pre-remediation findings.*
