@@ -89,3 +89,7 @@ compile_commands.json
 # Performance profiling
 *.prof
 perf.data*
+
+# Python
+__pycache__/
+*.py[cod]

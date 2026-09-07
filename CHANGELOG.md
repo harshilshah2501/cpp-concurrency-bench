@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Removed fabricated README “Actual Results” / impossible memory tables; numbers must be regenerated locally
+- Softened platform claims (Linux/macOS first-class; Windows not claimed)
+- Named copyright holder in LICENSE
+- Documented that `benchmark_results_simple/` is non-citable historical data; removed truncated semaphore JSON
+
+### Added
+- `docs/METHODOLOGY.md`, `docs/DECISION_MATRIX.md`, `docs/PUBLIC_LAUNCH.md`
+- Decision matrix schema + `scripts/build_decision_matrix.py`
+- `.github/CODEOWNERS`
+- CI status / license / C++20 badges in README
+
+### Fixed (correctness / CI — see prior notes)
 - Semaphore queue lifecycle hang across Google Benchmark iterations
 - Coroutine awaiter use-after-free and unreliable completion tracking
 - Counter benchmark methodology (per-iteration workers, PauseTiming, non-cumulative ops)
@@ -19,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scripts assuming Make generator / wrong binary paths
 - Static canned analysis report replaced with JSON-derived summary
 
-### Added
+### Added (tooling)
 - `AUDIT.md` comprehensive project audit
 - Shared `bench_harness.hpp` and `semaphore_queue.hpp`
 - Smoke unit tests (`tests/test_smoke.cpp`) via CTest
@@ -29,13 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - CI matrix to ubuntu-22.04/24.04 + macos-14; fail on benchmark timeouts
 - Build uses `target_include_directories` / `target_compile_options`
-
-### Added (historical notes carried forward)
-- Comprehensive kitchen analogy system for all concurrency primitives
-- Benchmark results validation proving theoretical hypotheses
-- Complete debugging infrastructure for hanging benchmarks
-- Timeout protection and process monitoring
-- Educational documentation with real performance data
 
 ## [1.0.0] - 2024-09-24
 
@@ -52,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kitchen analogy system for intuitive understanding
 - Automated benchmark execution scripts
 - Performance analysis and comparison tools
-- Cross-platform support (Linux, macOS, Windows)
+- Cross-platform support (**Linux and macOS**; Windows not first-class)
 
 ### Technical Features
 - Thread affinity support for consistent results

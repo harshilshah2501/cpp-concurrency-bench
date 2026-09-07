@@ -318,6 +318,17 @@ PY
 
 echo -e "${GREEN}Analysis complete!${NC}"
 echo "Results saved to: ${RESULTS_DIR}"
+
+if command -v python3 >/dev/null 2>&1; then
+    MATRIX_OUT="${RESULTS_DIR}/decision_matrix.json"
+    if python3 scripts/build_decision_matrix.py "${RESULTS_DIR}" --out "${MATRIX_OUT}"; then
+        echo -e "${GREEN}Decision matrix: ${MATRIX_OUT}${NC}"
+        mkdir -p matrix/generated
+        cp "${MATRIX_OUT}" matrix/generated/decision_matrix.json 2>/dev/null || true
+    else
+        echo -e "${YELLOW}Decision matrix generation skipped/failed${NC}"
+    fi
+fi
 echo
 echo -e "${BLUE}Quick summary of files:${NC}"
 find "${RESULTS_DIR}" -name "*.json" -exec basename {} \; | sort

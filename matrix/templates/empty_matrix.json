@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": null,
+  "host": { "name": "unmeasured", "os": null, "num_cpus": null, "mhz_per_cpu": null },
+  "build": { "build_type": "Release", "native_arch": false, "notes": "Fill by running scripts/build_decision_matrix.py" },
+  "workloads": [
+    { "id": "W.counter.hot", "entries": [] },
+    { "id": "W.atomic.mo", "entries": [] },
+    { "id": "W.rwlock.read_heavy", "entries": [] },
+    { "id": "W.pc.bounded", "entries": [] },
+    { "id": "W.barrier.phases", "entries": [] },
+    { "id": "W.tasks.cpu_many", "entries": [] },
+    { "id": "W.coro.io_many", "entries": [] }
+  ],
+  "warnings": ["Template only — not measured data"]
+}

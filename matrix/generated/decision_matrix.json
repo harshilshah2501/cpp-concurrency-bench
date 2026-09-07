@@ -1,0 +1,173 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-09-07T09:30:23.543948+00:00",
+  "host": {
+    "name": "cursor",
+    "os": "Linux-6.12.94+-x86_64-with-glibc2.39",
+    "num_cpus": 4,
+    "mhz_per_cpu": 2400
+  },
+  "build": {
+    "build_type": "release",
+    "native_arch": false,
+    "notes": "Generated from /tmp/bench_quick"
+  },
+  "workloads": [
+    {
+      "id": "W.counter.hot",
+      "entries": [
+        {
+          "primitive": "mutex",
+          "benchmark": "Counter_Mutex_Hot/1/real_time",
+          "items_per_second": 58110265.9474425,
+          "real_time_ns": 100.19909399943572,
+          "fairness_cv": null,
+          "source_file": "counter_mutex.json"
+        },
+        {
+          "primitive": "atomic_relaxed",
+          "benchmark": "Counter_Atomic_Relaxed/1/real_time",
+          "items_per_second": 110040604.26654682,
+          "real_time_ns": 100.15006799949333,
+          "fairness_cv": null,
+          "source_file": "counter_atomic.json"
+        },
+        {
+          "primitive": "spinlock",
+          "benchmark": "Counter_Spin_Hot/1/real_time",
+          "items_per_second": 90290947.75781243,
+          "real_time_ns": 100.23479899973609,
+          "fairness_cv": null,
+          "source_file": "counter_spin.json"
+        }
+      ]
+    },
+    {
+      "id": "W.atomic.mo",
+      "entries": [
+        {
+          "primitive": "seq_cst",
+          "benchmark": "Counter_Atomic_SeqCst",
+          "items_per_second": null,
+          "real_time_ns": null,
+          "fairness_cv": null,
+          "source_file": null
+        },
+        {
+          "primitive": "acq_rel",
+          "benchmark": "Counter_Atomic_AcqRel",
+          "items_per_second": null,
+          "real_time_ns": null,
+          "fairness_cv": null,
+          "source_file": null
+        },
+        {
+          "primitive": "relaxed",
+          "benchmark": "Counter_Atomic_Relaxed/1/real_time",
+          "items_per_second": 110040604.26654682,
+          "real_time_ns": 100.15006799949333,
+          "fairness_cv": null,
+          "source_file": "counter_atomic.json"
+        }
+      ]
+    },
+    {
+      "id": "W.rwlock.read_heavy",
+      "entries": [
+        {
+          "primitive": "shared_mutex",
+          "benchmark": "SharedMutex_ReadHeavy_90_10",
+          "items_per_second": null,
+          "real_time_ns": null,
+          "fairness_cv": null,
+          "source_file": null
+        },
+        {
+          "primitive": "exclusive_mutex",
+          "benchmark": "ExclusiveMutex_ReadHeavy_90_10",
+          "items_per_second": null,
+          "real_time_ns": null,
+          "fairness_cv": null,
+          "source_file": null
+        }
+      ]
+    },
+    {
+      "id": "W.pc.bounded",
+      "entries": [
+        {
+          "primitive": "condvar",
+          "benchmark": "PC_CondVar",
+          "items_per_second": null,
+          "real_time_ns": null,
+          "fairness_cv": null,
+          "source_file": null
+        },
+        {
+          "primitive": "semaphore_spsc",
+          "benchmark": "ProducerConsumer_SPSC_Semaphore",
+          "items_per_second": null,
+          "real_time_ns": null,
+          "fairness_cv": null,
+          "source_file": null
+        }
+      ]
+    },
+    {
+      "id": "W.barrier.phases",
+      "entries": [
+        {
+          "primitive": "std_barrier",
+          "benchmark": "StdBarrier_WithWork",
+          "items_per_second": null,
+          "real_time_ns": null,
+          "fairness_cv": null,
+          "source_file": null
+        },
+        {
+          "primitive": "manual_barrier",
+          "benchmark": "ManualBarrier_WithWork",
+          "items_per_second": null,
+          "real_time_ns": null,
+          "fairness_cv": null,
+          "source_file": null
+        }
+      ]
+    },
+    {
+      "id": "W.tasks.cpu_many",
+      "entries": [
+        {
+          "primitive": "thread_pool",
+          "benchmark": "ThreadPool_CPUBound",
+          "items_per_second": null,
+          "real_time_ns": null,
+          "fairness_cv": null,
+          "source_file": null
+        },
+        {
+          "primitive": "std_async",
+          "benchmark": "StdAsync_CPUBound",
+          "items_per_second": null,
+          "real_time_ns": null,
+          "fairness_cv": null,
+          "source_file": null
+        }
+      ]
+    },
+    {
+      "id": "W.coro.io_many",
+      "entries": [
+        {
+          "primitive": "coroutines_io",
+          "benchmark": "Coroutines_IOBound",
+          "items_per_second": null,
+          "real_time_ns": null,
+          "fairness_cv": null,
+          "source_file": null
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}

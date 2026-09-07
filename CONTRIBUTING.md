@@ -145,7 +145,9 @@ Follow our debugging checklist:
 ## 🎯 Priority Areas for Contribution
 
 ### High Priority
-- **Fix semaphore benchmark hanging** (known issue)
+- **Fix semaphore benchmark hanging** — addressed via `SemaphoreQueue::close()` lifecycle
+- Expand decision-matrix corpus across CPU vendors
+- Optional Windows CI + affinity implementation
 - **Add NUMA-aware benchmarks** for multi-socket systems
 - **Coroutine performance analysis** (C++20 adoption increasing)
 - **Lock-free data structure benchmarks**

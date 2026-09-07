@@ -121,8 +121,15 @@ jobs:
         test -f CHANGELOG.md
         test -f SECURITY.md
         test -f AUDIT.md
+        test -f docs/METHODOLOGY.md
+        test -f docs/DECISION_MATRIX.md
+        test -f docs/PUBLIC_LAUNCH.md
+        test -f matrix/schema.json
+        test -f scripts/build_decision_matrix.py
         # No unresolved merge conflict markers in tracked docs/config
-        ! grep -RInE '^(<<<<<<<|>>>>>>>|=======)$' README.md CHANGELOG.md SECURITY.md CONTRIBUTING.md .gitignore AUDIT.md
+        ! grep -RInE '^(<<<<<<<|>>>>>>>|=======)$' README.md CHANGELOG.md SECURITY.md CONTRIBUTING.md .gitignore AUDIT.md docs
+        # Guard against reintroducing fabricated GB-scale thread tables
+        ! grep -nE '800 GB|DRAMATICALLY CONFIRMED|All Hypotheses Validated' README.md
         test -x scripts/run_all_benchmarks.sh
         test -x scripts/debug_benchmarks.sh
         test -x scripts/compare_results.sh

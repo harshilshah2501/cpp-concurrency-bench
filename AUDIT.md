@@ -325,7 +325,7 @@ Not a high-risk networked product, but **correctness bugs are “security-adjace
 | 1 | Resolve merge conflicts | Done |
 | 2 | Fix semaphore lifecycle + re-enable | Done |
 | 3 | Fix coroutine UAF + completion tracking | Done |
-| 4 | Repair CI | Done |
+| 4 | Repair CI | Done (green on remediation branch) |
 | 5 | Refactor counter harness | Done |
 | 6 | Header hygiene | Done |
 | 7 | Wire affinity into benches | Done (`bench_harness`) |
@@ -333,7 +333,17 @@ Not a high-risk networked product, but **correctness bugs are “security-adjace
 | 9 | Smoke unit tests | Done (`ctest`) |
 | 10 | Pin dependency + `-march` policy | Done (`BENCH_NATIVE_ARCH`) |
 
-See branch `cursor/audit-remediation-a9bc` / follow-up PR for the implementation.
+## Public credibility follow-through
+
+| Item | Status |
+|------|--------|
+| Remove fabricated README result tables | Done |
+| Methodology + decision matrix docs/schema/generator | Done |
+| Named LICENSE copyright, CODEOWNERS, badges | Done |
+| Soften Windows / “data-driven guaranteed” claims | Done |
+| Public visibility / topics / GitHub release | Owner action (see `docs/PUBLIC_LAUNCH.md`) |
+
+See branches `cursor/audit-remediation-a9bc` and `cursor/public-credibility-polish-a9bc`.
 
 ---
 
